@@ -85,9 +85,17 @@ async function stageFile(path, contents, temporaryPath) {
     temporaryFile = undefined;
 
     return {
-      path: temporaryPath,
+      get path() {
+        return temporaryPath;
+      },
       release() {
         ownsTemporaryPath = false;
+      },
+      preserve() {
+        ownsTemporaryPath = false;
+      },
+      relocate(path) {
+        temporaryPath = path;
       },
       async cleanup() {
         await temporaryFile?.close().catch(() => {});
@@ -259,11 +267,73 @@ async function releaseDirectoryLock(lockPath, ownerPath, workspacePath, token) {
   await removeLockDirectory(lockPath);
 }
 
+async function validateReadyRollback(directory, type, rollbackPath) {
+  let rollbackValue;
+  try {
+    rollbackValue = JSON.parse(await readFile(rollbackPath, "utf8"));
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw new Error(`invalid retained rollback ${rollbackPath}: ${error.message}`);
+  }
+
+  let errors;
+  if (type === "manifest") {
+    const versions = (await readJson(join(directory, "versions.json"))).value;
+    errors = [
+      ...validateManifest(rollbackValue),
+      ...validateVersions(rollbackValue, versions),
+    ];
+  } else {
+    const manifest = (await readJson(join(directory, "manifest.json"))).value;
+    errors = validateVersions(manifest, rollbackValue);
+  }
+  if (errors.length) {
+    throw new Error(
+      `invalid retained rollback ${rollbackPath}: ${errors.join("; ")}`,
+    );
+  }
+  return true;
+}
+
+async function recoverWorkspaceRollbacks(lockPath, workspacePath) {
+  let entries;
+  try {
+    entries = await readdir(workspacePath, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === "ENOENT") return false;
+    throw error;
+  }
+  const rollbackPattern =
+    /^\.(manifest|versions)\.json\.aera-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\.rollback\.ready$/;
+  for (const entry of entries) {
+    const match = entry.isFile() ? rollbackPattern.exec(entry.name) : null;
+    if (!match) continue;
+
+    const rollbackPath = join(workspacePath, entry.name);
+    const destination = join(dirname(lockPath), `${match[1]}.json`);
+    if (!(await validateReadyRollback(dirname(lockPath), match[1], rollbackPath))) {
+      return false;
+    }
+    try {
+      await rename(rollbackPath, destination);
+    } catch (error) {
+      if (error?.code === "ENOENT") return false;
+      throw new Error(
+        `could not retry retained rollback ${rollbackPath} -> ${destination}: ${error.message}; original contents retained at ${rollbackPath}`,
+      );
+    }
+  }
+  return true;
+}
+
 async function removeStaleLock(lockPath, observed) {
   if (observed.ownerPath) {
     const currentOwner = await inspectLockOwner(observed.ownerPath);
     if (currentOwner?.identity !== observed.owner?.identity) return false;
     if (observed.workspacePath) {
+      if (!(await recoverWorkspaceRollbacks(lockPath, observed.workspacePath))) {
+        return false;
+      }
       await rm(observed.workspacePath, { recursive: true, force: true });
     }
     try {
@@ -402,10 +472,12 @@ function stageCleanupError(originalError, path, failures, retained) {
 
 function rollbackError(originalError, failures) {
   const details = failures
-    .map(
-      ({ action, error, path }) =>
-        `${action} ${path}: ${errorMessage(error)}`,
-    )
+    .map(({ action, error, path, retained }) => {
+      const retainedDetails = retained
+        ? `; original contents retained at ${path}`
+        : "";
+      return `${action} ${path}: ${errorMessage(error)}${retainedDetails}`;
+    })
     .join("; ");
   return new AggregateError(
     [originalError, ...failures.map(({ error }) => error)],
@@ -476,24 +548,32 @@ async function replaceTogether(replacements, workspacePath) {
     const rollbackFailures = [];
     const rollbackTemporaries = [];
     for (const file of installed.toReversed()) {
-      const rollbackPath = join(
+      const preparingPath = join(
         workspacePath,
-        `.${basename(file.path)}.aera-${transactionId}.rollback.tmp`,
+        `.${basename(file.path)}.aera-${transactionId}.rollback.preparing`,
       );
+      const readyPath = preparingPath.replace(/\.preparing$/, ".ready");
+      let rollbackTemporary;
+      let rollbackReady = false;
       try {
-        const rollbackTemporary = await stageFile(
+        rollbackTemporary = await stageFile(
           file.path,
           file.rollbackContents,
-          rollbackPath,
+          preparingPath,
         );
         rollbackTemporaries.push({ temporary: rollbackTemporary });
+        await rename(rollbackTemporary.path, readyPath);
+        rollbackTemporary.relocate(readyPath);
+        rollbackReady = true;
         await rename(rollbackTemporary.path, file.path);
         rollbackTemporary.release();
       } catch (rollbackFailure) {
+        if (rollbackReady) rollbackTemporary.preserve();
         rollbackFailures.push({
           action: "restore original",
           error: rollbackFailure,
-          path: rollbackPath,
+          path: rollbackReady ? readyPath : preparingPath,
+          retained: rollbackReady,
         });
       }
     }

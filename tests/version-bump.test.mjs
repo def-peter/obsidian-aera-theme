@@ -613,6 +613,204 @@ syncBuiltinESMExports();
   assert.ok(temporaryPath, "the reported retained temporary must still exist");
 });
 
+test("failed atomic rollback preserves and retries the original contents", async (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const preloadPath = join(directory, "fail-rollback-only.mjs");
+  writeFileSync(
+    preloadPath,
+    `import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename } from "node:path";
+
+const realRename = fs.promises.rename;
+let installFailed = false;
+let rollbackFailed = false;
+fs.promises.rename = async (source, destination) => {
+  const sourceName = basename(String(source));
+  const destinationName = basename(String(destination));
+  if (!installFailed && sourceName.startsWith(".manifest.json.aera-") && sourceName.endsWith(".install.tmp")) {
+    installFailed = true;
+    throw new Error("injected manifest-only install failure");
+  }
+  if (!rollbackFailed && sourceName.startsWith(".versions.json.aera-") && sourceName.endsWith(".rollback.ready") && destinationName === "versions.json") {
+    rollbackFailed = true;
+    throw new Error("injected versions-only rollback failure");
+  }
+  return realRename(source, destination);
+};
+syncBuiltinESMExports();
+`,
+  );
+
+  const failed = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(preloadPath).href, cliPath],
+    { cwd: directory, encoding: "utf8" },
+  );
+  const rollbackPath = findNestedFile(
+    directory,
+    /^\.versions\.json\.aera-.+\.rollback\.ready$/,
+  );
+
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /injected manifest-only install failure/);
+  assert.match(failed.stderr, /rollback.*injected versions-only rollback failure/i);
+  assert.match(failed.stderr, /original (?:contents|copy) retained at/i);
+  assert.match(failed.stderr, /workspace.*retained/i);
+  assert.ok(rollbackPath, "the original serialized contents must remain on disk");
+  assert.match(
+    failed.stderr,
+    new RegExp(basename(rollbackPath).replaceAll(".", "\\.")),
+  );
+  assert.equal(existsSync(join(directory, ".aera-version-bump.lock")), true);
+
+  rmSync(preloadPath, { force: true });
+  const recovered = await Promise.all(
+    Array.from({ length: 16 }, () => runCliAsync(directory)),
+  );
+
+  for (const result of recovered) assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    readFileSync(join(directory, "manifest.json"), "utf8"),
+    `${JSON.stringify({ ...manifest, version: "1.0.0" }, null, 2)}\n`,
+  );
+  assert.equal(
+    readFileSync(join(directory, "versions.json"), "utf8"),
+    `${JSON.stringify({ ...versions, "1.0.0": "1.12.7" }, null, 2)}\n`,
+  );
+  assert.deepEqual(readdirSync(directory).sort(), [
+    "manifest.json",
+    "package.json",
+    "versions.json",
+  ]);
+});
+
+test("partial rollback preparation is never applied to canonical JSON", (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const preloadPath = join(directory, "fail-rollback-preparing.mjs");
+  writeFileSync(
+    preloadPath,
+    `import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename } from "node:path";
+
+const realOpen = fs.promises.open;
+const realRename = fs.promises.rename;
+const realRm = fs.promises.rm;
+let installFailed = false;
+fs.promises.open = async (path, ...args) => {
+  const handle = await realOpen(path, ...args);
+  const name = basename(String(path));
+  if (name.startsWith(".versions.json.aera-") && name.endsWith(".rollback.preparing")) {
+    const realWriteFile = handle.writeFile.bind(handle);
+    handle.writeFile = async () => {
+      await realWriteFile('{"partial":');
+      throw new Error("injected partial rollback write failure");
+    };
+  }
+  return handle;
+};
+fs.promises.rename = async (source, destination) => {
+  const sourceName = basename(String(source));
+  if (!installFailed && sourceName.startsWith(".manifest.json.aera-") && sourceName.endsWith(".install.tmp")) {
+    installFailed = true;
+    throw new Error("injected manifest install failure before partial rollback");
+  }
+  return realRename(source, destination);
+};
+fs.promises.rm = async (path, options) => {
+  const name = basename(String(path));
+  if (name.startsWith(".versions.json.aera-") && name.endsWith(".rollback.preparing")) {
+    throw new Error("injected partial rollback removal failure");
+  }
+  return realRm(path, options);
+};
+syncBuiltinESMExports();
+`,
+  );
+
+  const failed = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(preloadPath).href, cliPath],
+    { cwd: directory, encoding: "utf8" },
+  );
+  const preparingPath = findNestedFile(
+    directory,
+    /^\.versions\.json\.aera-.+\.rollback\.preparing$/,
+  );
+
+  assert.equal(failed.status, 1);
+  assert.match(failed.stderr, /partial rollback write failure/);
+  assert.match(failed.stderr, /partial rollback removal failure/);
+  assert.ok(preparingPath, "the partial rollback preparation should be retained");
+
+  rmSync(preloadPath, { force: true });
+  const recovered = runCli(directory);
+
+  assert.equal(recovered.status, 0, recovered.stderr);
+  assert.doesNotThrow(() =>
+    JSON.parse(readFileSync(join(directory, "versions.json"), "utf8")),
+  );
+  assert.deepEqual(readdirSync(directory).sort(), [
+    "manifest.json",
+    "package.json",
+    "versions.json",
+  ]);
+});
+
+test("stale recovery rejects an invalid ready rollback copy", (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const preloadPath = join(directory, "corrupt-ready-rollback.mjs");
+  writeFileSync(
+    preloadPath,
+    `import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename } from "node:path";
+
+const realRename = fs.promises.rename;
+let installFailed = false;
+let rollbackFailed = false;
+fs.promises.rename = async (source, destination) => {
+  const sourceName = basename(String(source));
+  const destinationName = basename(String(destination));
+  if (!installFailed && sourceName.startsWith(".manifest.json.aera-") && sourceName.endsWith(".install.tmp")) {
+    installFailed = true;
+    throw new Error("injected manifest install failure for corrupt ready rollback");
+  }
+  if (!rollbackFailed && sourceName.startsWith(".versions.json.aera-") && sourceName.endsWith(".rollback.ready") && destinationName === "versions.json") {
+    rollbackFailed = true;
+    throw new Error("injected versions rollback failure before corruption");
+  }
+  return realRename(source, destination);
+};
+syncBuiltinESMExports();
+`,
+  );
+
+  const failed = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(preloadPath).href, cliPath],
+    { cwd: directory, encoding: "utf8" },
+  );
+  const readyPath = findNestedFile(
+    directory,
+    /^\.versions\.json\.aera-.+\.rollback\.ready$/,
+  );
+  assert.equal(failed.status, 1);
+  assert.ok(readyPath, "rollback failure should retain a ready original copy");
+  writeFileSync(readyPath, '{"invalid":true}\n');
+  rmSync(preloadPath, { force: true });
+
+  const rejected = runCli(directory);
+
+  assert.equal(rejected.status, 1);
+  assert.match(rejected.stderr, /invalid retained rollback|could not validate/i);
+  assert.doesNotThrow(() =>
+    JSON.parse(readFileSync(join(directory, "versions.json"), "utf8")),
+  );
+  assert.equal(existsSync(readyPath), true);
+});
+
 test("version bump CLI aggregates atomic install rollback and cleanup failures", (t) => {
   const directory = createFixture(t, "1.0.0");
   const preloadPath = join(directory, "fail-renames.mjs");
@@ -633,7 +831,7 @@ fs.promises.rename = async (source, destination) => {
     installFailed = true;
     throw new Error("injected manifest install failure");
   }
-  if (!rollbackFailed && sourceName.startsWith(".versions.json.aera-") && sourceName.endsWith(".rollback.tmp") && destinationName === "versions.json") {
+  if (!rollbackFailed && sourceName.startsWith(".versions.json.aera-") && sourceName.endsWith(".rollback.ready") && destinationName === "versions.json") {
     rollbackFailed = true;
     throw new Error("injected versions rollback failure");
   }
@@ -642,8 +840,8 @@ fs.promises.rename = async (source, destination) => {
 fs.promises.rm = async (path, options) => {
   const name = basename(String(path));
   const parent = basename(dirname(String(path)));
-  if (name.startsWith(".versions.json.aera-") && name.endsWith(".rollback.tmp")) {
-    throw new Error("injected rollback temporary cleanup failure");
+  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".install.tmp")) {
+    throw new Error("injected install temporary cleanup failure");
   }
   return realRm(path, options);
 };
@@ -658,15 +856,24 @@ syncBuiltinESMExports();
   );
   const temporaryPath = findNestedFile(
     directory,
-    /^\.versions\.json\.aera-.+\.rollback\.tmp$/,
+    /^\.versions\.json\.aera-.+\.rollback\.ready$/,
+  );
+  const installTemporaryPath = findNestedFile(
+    directory,
+    /^\.manifest\.json\.aera-.+\.install\.tmp$/,
   );
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /injected manifest install failure/);
   assert.match(result.stderr, /rollback.*injected versions rollback failure/i);
-  assert.match(result.stderr, /rollback temporary cleanup failure/i);
+  assert.match(result.stderr, /install temporary cleanup failure/i);
+  assert.match(result.stderr, /original contents retained at/i);
   assert.match(result.stderr, /workspace.*retained|ENOTEMPTY/i);
   assert.ok(temporaryPath, "failed cleanup should preserve the rollback temporary");
+  assert.ok(
+    installTemporaryPath,
+    "failed cleanup should preserve the install temporary",
+  );
   assert.match(
     result.stderr,
     new RegExp(basename(temporaryPath).replaceAll(".", "\\.")),
