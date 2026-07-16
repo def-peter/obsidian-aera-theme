@@ -1,4 +1,3 @@
-/* Aera - A quiet interface for clear thinking. */
 .theme-light {
   --color-base-00: #f7f8f6;
   --color-base-05: #f4f5f3;
@@ -12,12 +11,14 @@
   --color-base-60: #68756d;
   --color-base-70: #4e5b53;
   --color-base-100: #28302c;
+
   --background-primary: var(--color-base-00);
   --background-secondary: var(--color-base-10);
   --text-normal: var(--color-base-100);
   --text-muted: var(--color-base-60);
   --text-faint: var(--color-base-50);
   --text-highlight-bg: rgba(191, 168, 68, 0.26);
+
   --accent-h: 152.9;
   --accent-s: 28.8%;
   --accent-l: 34.7%;
@@ -36,25 +37,15 @@
   --color-base-60: #95a39b;
   --color-base-70: #bbc7c0;
   --color-base-100: #dce4df;
+
   --background-primary: var(--color-base-00);
   --background-secondary: var(--color-base-10);
   --text-normal: var(--color-base-100);
   --text-muted: var(--color-base-60);
   --text-faint: var(--color-base-50);
   --text-highlight-bg: rgba(191, 168, 68, 0.28);
+
   --accent-h: 148.6;
   --accent-s: 31.1%;
   --accent-l: 59%;
-}
-
-body {
-  --font-text-theme: "Avenir Next", Avenir, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei",
-    "Noto Sans CJK SC", sans-serif;
-  --font-monospace-theme: ui-monospace, SFMono-Regular, Consolas,
-    "Liberation Mono", monospace;
-  --line-height-normal: 1.8;
-  --p-spacing: var(--size-4-3);
-  --heading-spacing: var(--size-4-8);
-  --bold-modifier: 200;
 }

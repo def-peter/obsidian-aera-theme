@@ -1,0 +1,11 @@
+body {
+  --font-text-theme: "Avenir Next", Avenir, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei",
+    "Noto Sans CJK SC", sans-serif;
+  --font-monospace-theme: ui-monospace, SFMono-Regular, Consolas,
+    "Liberation Mono", monospace;
+  --line-height-normal: 1.8;
+  --p-spacing: var(--size-4-3);
+  --heading-spacing: var(--size-4-8);
+  --bold-modifier: 200;
+}
