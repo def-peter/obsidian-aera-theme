@@ -1,0 +1,16 @@
+{
+  "name": "obsidian-aera-theme",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "sass --watch --no-source-map --style=expanded --no-error-css src/theme.scss:theme.css",
+    "build": "sass --no-source-map --style=expanded --no-error-css src/theme.scss theme.css",
+    "test": "node --test",
+    "check": "npm run build && node --test && node scripts/check-theme.mjs && node scripts/contrast.mjs"
+  },
+  "devDependencies": {
+    "postcss": "8.5.19",
+    "sass": "1.101.0"
+  }
+}
