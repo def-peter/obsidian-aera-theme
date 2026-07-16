@@ -1,0 +1,21 @@
+body {
+  --table-background: transparent;
+  --table-border-width: 1px;
+  --table-border-color: var(--background-modifier-border);
+  --table-cell-vertical-alignment: top;
+  --table-white-space: normal;
+  --table-header-background: var(--background-secondary);
+  --table-header-background-hover: var(--background-modifier-hover);
+  --table-header-border-width: 1px;
+  --table-header-border-color: var(--background-modifier-border);
+  --table-header-size: var(--font-small);
+  --table-header-weight: 600;
+  --table-header-color: var(--text-muted);
+  --table-line-height: 1.5;
+  --table-text-size: var(--font-small);
+  --table-text-color: var(--text-normal);
+  --table-row-background-hover: var(--background-modifier-hover);
+  --table-selection-border-color: var(--interactive-accent);
+  --table-selection-border-width: 1px;
+  --table-selection-border-radius: 4px;
+}

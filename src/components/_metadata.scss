@@ -1,0 +1,19 @@
+body {
+  --metadata-background: transparent;
+  --metadata-border-color: transparent;
+  --metadata-border-radius: 0;
+  --metadata-border-width: 0px;
+  --metadata-divider-color: var(--background-modifier-border);
+  --metadata-divider-color-hover: var(--background-modifier-border-hover);
+  --metadata-divider-color-focus: var(--interactive-accent);
+  --metadata-divider-width: 1px;
+  --metadata-property-radius: 4px;
+  --metadata-property-radius-hover: 4px;
+  --metadata-property-radius-focus: 4px;
+  --metadata-label-font-size: var(--font-smallest);
+  --metadata-label-font-weight: 500;
+  --metadata-label-text-color: var(--text-faint);
+  --metadata-input-font-size: var(--font-small);
+  --metadata-input-text-color: var(--text-normal);
+  --metadata-input-background: transparent;
+}

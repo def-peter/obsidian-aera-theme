@@ -2,8 +2,14 @@
 
 @use "foundations/colors";
 @use "foundations/typography";
+@use "foundations/spacing";
 @use "editor/headings";
 @use "editor/inline";
 @use "editor/lists";
 @use "editor/quotes";
 @use "editor/code";
+@use "components/callouts";
+@use "components/tables";
+@use "components/metadata";
+@use "components/embeds";
+@use "components/tags";
