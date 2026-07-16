@@ -1,0 +1,20 @@
+body {
+  --list-indent: 2em;
+  --list-indent-editing: 0.75em;
+  --list-spacing: var(--size-2-1);
+  --list-marker-color: var(--text-muted);
+  --list-marker-color-hover: var(--text-accent);
+  --list-marker-color-collapsed: var(--text-accent);
+  --list-bullet-border: 1px solid var(--text-muted);
+  --list-bullet-radius: 50%;
+  --list-bullet-size: 5px;
+  --checkbox-radius: 4px;
+  --checkbox-size: 16px;
+  --checkbox-marker-color: var(--text-on-accent);
+  --checkbox-color: var(--interactive-accent);
+  --checkbox-color-hover: var(--interactive-accent-hover);
+  --checkbox-border-color: var(--text-faint);
+  --checkbox-border-color-hover: var(--text-muted);
+  --checklist-done-decoration: line-through;
+  --checklist-done-color: var(--text-faint);
+}

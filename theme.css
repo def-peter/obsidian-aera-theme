@@ -109,3 +109,57 @@ body {
   --link-external-decoration: none;
   --link-external-decoration-hover: underline;
 }
+
+body {
+  --list-indent: 2em;
+  --list-indent-editing: 0.75em;
+  --list-spacing: var(--size-2-1);
+  --list-marker-color: var(--text-muted);
+  --list-marker-color-hover: var(--text-accent);
+  --list-marker-color-collapsed: var(--text-accent);
+  --list-bullet-border: 1px solid var(--text-muted);
+  --list-bullet-radius: 50%;
+  --list-bullet-size: 5px;
+  --checkbox-radius: 4px;
+  --checkbox-size: 16px;
+  --checkbox-marker-color: var(--text-on-accent);
+  --checkbox-color: var(--interactive-accent);
+  --checkbox-color-hover: var(--interactive-accent-hover);
+  --checkbox-border-color: var(--text-faint);
+  --checkbox-border-color-hover: var(--text-muted);
+  --checklist-done-decoration: line-through;
+  --checklist-done-color: var(--text-faint);
+}
+
+body {
+  --blockquote-background-color: transparent;
+  --blockquote-border-thickness: 2px;
+  --blockquote-border-color: var(--text-accent);
+  --blockquote-font-style: normal;
+  --blockquote-color: var(--text-muted);
+  --hr-color: var(--background-modifier-border);
+  --hr-thickness: 1px;
+}
+
+body {
+  --code-background: var(--background-secondary);
+  --code-white-space: pre;
+  --code-size: 0.88em;
+  --code-normal: var(--text-normal);
+  --code-comment: var(--text-faint);
+  --code-function: var(--color-blue);
+  --code-important: var(--color-orange);
+  --code-keyword: var(--text-accent);
+  --code-operator: var(--text-muted);
+  --code-property: var(--color-cyan);
+  --code-punctuation: var(--text-muted);
+  --code-string: var(--color-orange);
+  --code-tag: var(--color-red);
+  --code-value: var(--color-purple);
+}
+
+/* Obsidian has no code-block border or radius variable. */
+.markdown-rendered pre {
+  border: var(--border-width) solid var(--background-modifier-border);
+  border-radius: 6px;
+}
