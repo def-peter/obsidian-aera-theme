@@ -2,11 +2,15 @@ import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
 import { open, readFile, rename, rm } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
 import { validateManifest, validateVersions } from "./theme-policy.mjs";
 
 const modulePath = fileURLToPath(import.meta.url);
+const lockName = ".aera-version-bump.lock";
+const lockTimeoutMs = 30_000;
+const lockRetryMs = 10;
 
 function throwValidationErrors(errors, context = "") {
   if (errors.length) {
@@ -89,6 +93,80 @@ async function stageFile(path, contents, id) {
   }
 }
 
+async function acquireDirectoryLock(directory) {
+  const lockPath = join(directory, lockName);
+  const deadline = Date.now() + lockTimeoutMs;
+
+  while (true) {
+    try {
+      const lockFile = await open(lockPath, "wx");
+      let ownsLock = true;
+      return {
+        async release() {
+          await lockFile.close();
+          if (ownsLock) {
+            await rm(lockPath, { force: true });
+            ownsLock = false;
+          }
+        },
+      };
+    } catch (error) {
+      if (error?.code !== "EEXIST") {
+        throw new Error(`could not acquire version lock ${lockPath}: ${error.message}`);
+      }
+      if (Date.now() >= deadline) {
+        throw new Error(`timed out waiting for version lock ${lockPath}`);
+      }
+      await delay(lockRetryMs);
+    }
+  }
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function rollbackError(originalError, failures) {
+  const details = failures
+    .map(({ action, error, backup, destination }) => {
+      const paths = backup ? `${backup} -> ${destination}` : destination;
+      const retained = backup ? `; backup retained at ${backup}` : "";
+      return `${action} ${paths}: ${errorMessage(error)}${retained}`;
+    })
+    .join("; ");
+  return new AggregateError(
+    [originalError, ...failures.map(({ error }) => error)],
+    `${errorMessage(originalError)}; rollback failed: ${details}`,
+  );
+}
+
+async function cleanupStagedFiles(staged) {
+  const results = await Promise.all(
+    staged.map(async (file) => {
+      try {
+        await file.temporary.cleanup();
+        return null;
+      } catch (error) {
+        return { error, path: file.temporary.path };
+      }
+    }),
+  );
+  return results.filter(Boolean);
+}
+
+function cleanupError(originalError, failures) {
+  const details = failures
+    .map(
+      ({ error, path }) =>
+        `${path}: ${errorMessage(error)}; temporary retained at ${path}`,
+    )
+    .join("; ");
+  return new AggregateError(
+    [originalError, ...failures.map(({ error }) => error)],
+    `${errorMessage(originalError)}; cleanup failed: ${details}`,
+  );
+}
+
 async function replaceTogether(replacements) {
   const transactionId = randomUUID();
   const staged = [];
@@ -104,10 +182,12 @@ async function replaceTogether(replacements) {
       });
     }
   } catch (error) {
-    await Promise.all(staged.map((file) => file.temporary.cleanup()));
+    const cleanupFailures = await cleanupStagedFiles(staged);
+    if (cleanupFailures.length) throw cleanupError(error, cleanupFailures);
     throw error;
   }
 
+  let replacementError;
   try {
     for (const file of staged) {
       await rename(file.destination, file.backup);
@@ -119,22 +199,45 @@ async function replaceTogether(replacements) {
       file.replacementInstalled = true;
     }
   } catch (error) {
+    const rollbackFailures = [];
     for (const file of staged.toReversed()) {
       if (file.replacementInstalled) {
-        await rm(file.destination, { force: true }).catch(() => {});
-        file.replacementInstalled = false;
+        try {
+          await rm(file.destination, { force: true });
+          file.replacementInstalled = false;
+        } catch (rollbackFailure) {
+          rollbackFailures.push({
+            action: "remove replacement",
+            destination: file.destination,
+            error: rollbackFailure,
+          });
+        }
       }
       if (file.backupOwned) {
         try {
           await rename(file.backup, file.destination);
           file.backupOwned = false;
-        } catch {}
+          file.replacementInstalled = false;
+        } catch (rollbackFailure) {
+          rollbackFailures.push({
+            action: "restore backup",
+            backup: file.backup,
+            destination: file.destination,
+            error: rollbackFailure,
+          });
+        }
       }
     }
-    throw error;
-  } finally {
-    await Promise.all(staged.map((file) => file.temporary.cleanup()));
+    replacementError = rollbackFailures.length
+      ? rollbackError(error, rollbackFailures)
+      : error;
   }
+
+  const cleanupFailures = await cleanupStagedFiles(staged);
+  if (cleanupFailures.length) {
+    throw cleanupError(replacementError, cleanupFailures);
+  }
+  if (replacementError) throw replacementError;
 
   for (const file of staged) {
     await rm(file.backup);
@@ -143,20 +246,39 @@ async function replaceTogether(replacements) {
 }
 
 export async function syncVersion(directory = process.cwd()) {
-  const packagePath = join(directory, "package.json");
-  const manifestPath = join(directory, "manifest.json");
-  const versionsPath = join(directory, "versions.json");
-  const [packageJson, manifest, versions] = await Promise.all([
-    readJson(packagePath),
-    readJson(manifestPath),
-    readJson(versionsPath),
-  ]);
-  const next = bumpMetadata(manifest, versions, packageJson?.version);
+  const lock = await acquireDirectoryLock(directory);
+  let operationError;
+  try {
+    const packagePath = join(directory, "package.json");
+    const manifestPath = join(directory, "manifest.json");
+    const versionsPath = join(directory, "versions.json");
+    const [packageJson, manifest, versions] = await Promise.all([
+      readJson(packagePath),
+      readJson(manifestPath),
+      readJson(versionsPath),
+    ]);
+    const next = bumpMetadata(manifest, versions, packageJson?.version);
 
-  await replaceTogether([
-    { path: manifestPath, contents: jsonContents(next.manifest) },
-    { path: versionsPath, contents: jsonContents(next.versions) },
-  ]);
+    await replaceTogether([
+      { path: manifestPath, contents: jsonContents(next.manifest) },
+      { path: versionsPath, contents: jsonContents(next.versions) },
+    ]);
+  } catch (error) {
+    operationError = error;
+    throw error;
+  } finally {
+    try {
+      await lock.release();
+    } catch (releaseError) {
+      if (operationError) {
+        throw new AggregateError(
+          [operationError, releaseError],
+          `${errorMessage(operationError)}; could not release version lock: ${errorMessage(releaseError)}`,
+        );
+      }
+      throw releaseError;
+    }
+  }
 }
 
 function singleLine(value) {
