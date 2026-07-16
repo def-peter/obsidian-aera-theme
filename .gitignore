@@ -1,4 +1,5 @@
 .DS_Store
 .superpowers/
+artifacts/
 node_modules/
 *.map
