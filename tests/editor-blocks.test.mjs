@@ -76,9 +76,11 @@ const monokaiDeclarations = [
   ["--code-string", "#e6db74"],
   ["--code-tag", "#ff4b8b"],
   ["--code-value", "#ae81ff"],
+  ["--code-border-width", "1px"],
+  ["--code-border-color", "#3e3d32"],
+  ["--code-radius", "6px"],
   ["background-color", "#272822"],
   ["color", "#f8f8f2"],
-  ["border", "1px solid #3e3d32"],
 ];
 
 function directDeclarations(selector) {
@@ -97,7 +99,7 @@ function directDeclarations(selector) {
 test("styles reading code blocks with direct Monokai declarations", () => {
   assert.deepEqual(
     directDeclarations(":where(.markdown-rendered pre:not(.frontmatter))"),
-    [...monokaiDeclarations, ["border-radius", "6px"]],
+    monokaiDeclarations,
   );
 });
 
@@ -106,31 +108,6 @@ test("styles CM6 code block lines with direct Monokai declarations", () => {
     directDeclarations(
       ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
     ),
-    [
-      ...monokaiDeclarations,
-      ["border-block-width", "0"],
-      ["border-radius", "0"],
-    ],
-  );
-});
-
-test("restores the CM6 code block boundary borders and radii", () => {
-  assert.deepEqual(
-    directDeclarations(
-      ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-begin)",
-    ),
-    [
-      ["border-block-start-width", "1px"],
-      ["border-radius", "6px 6px 0 0"],
-    ],
-  );
-  assert.deepEqual(
-    directDeclarations(
-      ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-end)",
-    ),
-    [
-      ["border-block-end-width", "1px"],
-      ["border-radius", "0 0 6px 6px"],
-    ],
+    monokaiDeclarations,
   );
 });

@@ -16,8 +16,6 @@ const allowedSelectors = new Set([
   "body",
   ":where(.markdown-rendered pre:not(.frontmatter))",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
-  ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-begin)",
-  ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-end)",
 ]);
 const officialCalloutTypeVariables = [
   "--callout-bug",

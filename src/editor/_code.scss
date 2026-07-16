@@ -11,9 +11,11 @@
   --code-string: #e6db74;
   --code-tag: #ff4b8b;
   --code-value: #ae81ff;
+  --code-border-width: 1px;
+  --code-border-color: #3e3d32;
+  --code-radius: 6px;
   background-color: #272822;
   color: #f8f8f2;
-  border: 1px solid #3e3d32;
 }
 
 body {
@@ -23,24 +25,10 @@ body {
   --code-size: .88em;
 }
 
-/* Obsidian has no code-block border or radius variable. */
 :where(.markdown-rendered pre:not(.frontmatter)) {
   @include monokai-block;
-  border-radius: 6px;
 }
 
 :where(.markdown-source-view.mod-cm6 .HyperMD-codeblock) {
   @include monokai-block;
-  border-block-width: 0;
-  border-radius: 0;
-}
-
-:where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-begin) {
-  border-block-start-width: 1px;
-  border-radius: 6px 6px 0 0;
-}
-
-:where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-end) {
-  border-block-end-width: 1px;
-  border-radius: 0 0 6px 6px;
 }
