@@ -2,10 +2,36 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-import { declarationsFor } from "./helpers/css.mjs";
+import {
+  assertThemeStructure,
+  declarationsFor,
+  selectorsFor,
+} from "./helpers/css.mjs";
 
 const css = await readFile(new URL("../theme.css", import.meta.url), "utf8");
 const body = declarationsFor(css, "body");
+const allowedSelectors = new Set([
+  ".theme-light",
+  ".theme-dark",
+  "body",
+  ".markdown-rendered pre",
+]);
+const officialCalloutTypeVariables = [
+  "--callout-bug",
+  "--callout-default",
+  "--callout-error",
+  "--callout-example",
+  "--callout-fail",
+  "--callout-important",
+  "--callout-info",
+  "--callout-question",
+  "--callout-success",
+  "--callout-summary",
+  "--callout-tip",
+  "--callout-todo",
+  "--callout-warning",
+  "--callout-quote",
+];
 
 function assertPrefixedDeclarations(prefixes, expected) {
   const actual = Object.fromEntries(
@@ -16,6 +42,42 @@ function assertPrefixedDeclarations(prefixes, expected) {
 
   assert.deepEqual(actual, expected);
 }
+
+test("uses only the allowed low-specificity selectors", () => {
+  assert.deepEqual(selectorsFor(css), allowedSelectors);
+});
+
+test("rejects unexpected selectors in memory", () => {
+  for (const selector of [".mobile-only", ".markdown-source-view"]) {
+    assert.throws(
+      () => assertThemeStructure(`${css}\n${selector} { color: red; }`),
+      /unexpected theme selector/,
+    );
+  }
+});
+
+test("rejects callout variables outside body in memory", () => {
+  assert.throws(
+    () =>
+      assertThemeStructure(
+        `${css}\n.callout[data-callout="warning"] { --callout-color: red; }`,
+      ),
+    /--callout-color.*body/,
+  );
+});
+
+test("rejects official callout type variables globally in memory", () => {
+  for (const property of officialCalloutTypeVariables) {
+    assert.throws(
+      () => assertThemeStructure(`${css}\nbody { ${property}: red; }`),
+      new RegExp(`${property}.*semantic type`),
+    );
+  }
+});
+
+test("the compiled theme respects component structure boundaries", () => {
+  assert.doesNotThrow(() => assertThemeStructure(css));
+});
 
 test("styles callouts without replacing semantic type colors", () => {
   assertPrefixedDeclarations(["--callout-"], {
@@ -31,23 +93,8 @@ test("styles callouts without replacing semantic type colors", () => {
     "--callout-content-background": "transparent",
   });
 
-  for (const type of [
-    "note",
-    "info",
-    "todo",
-    "tip",
-    "important",
-    "success",
-    "question",
-    "warning",
-    "failure",
-    "danger",
-    "error",
-    "bug",
-    "example",
-    "quote",
-  ]) {
-    assert.equal(body.has(`--callout-${type}`), false, `--callout-${type}`);
+  for (const property of officialCalloutTypeVariables) {
+    assert.equal(body.has(property), false, property);
   }
 });
 
