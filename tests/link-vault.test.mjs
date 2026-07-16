@@ -28,6 +28,8 @@ import {
 const repoRoot = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const cliPath = join(repoRoot, "scripts/link-vault.mjs");
 const fixtureNames = ["Theme Playground.md", "Embedded Note.md"];
+const fixtureOwnershipMarker =
+  "<!-- Aera fixture managed by obsidian-aera-theme. -->";
 
 async function createVault(t) {
   const vault = await mkdtemp(join(tmpdir(), "aera-vault-"));
@@ -70,6 +72,58 @@ test("linkVault links Aera and copies the playground fixtures", async (t) => {
     assert.equal(await readFile(join(vault, name), "utf8"), expected);
   }
 });
+
+test("linkVault updates fixtures carrying the Aera ownership marker", async (t) => {
+  const vault = await createVault(t);
+
+  for (const name of fixtureNames) {
+    await writeFile(
+      join(vault, name),
+      `stale fixture\n\n${fixtureOwnershipMarker}\n`,
+    );
+  }
+
+  await linkVault(vault, repoRoot);
+
+  for (const name of fixtureNames) {
+    assert.equal(
+      await readFile(join(vault, name), "utf8"),
+      await readFile(join(repoRoot, "fixtures", name), "utf8"),
+    );
+  }
+});
+
+for (const unknownFixture of fixtureNames) {
+  test(`linkVault rejects an unknown ${unknownFixture} before updating any fixture`, async (t) => {
+    const vault = await createVault(t);
+    const originalContents = new Map();
+
+    for (const name of fixtureNames) {
+      const contents =
+        name === unknownFixture
+          ? `personal ${name} content\n`
+          : `stale owned ${name}\n\n${fixtureOwnershipMarker}\n`;
+      originalContents.set(name, contents);
+      await writeFile(join(vault, name), contents);
+    }
+
+    await assert.rejects(
+      linkVault(vault, repoRoot),
+      new RegExp(`Refusing to replace unknown fixture.*${unknownFixture}`, "i"),
+    );
+
+    for (const name of fixtureNames) {
+      assert.equal(
+        await readFile(join(vault, name), "utf8"),
+        originalContents.get(name),
+      );
+    }
+    assert.equal(
+      (await readdir(vault)).some((name) => /aera.*tmp|\.tmp/i.test(name)),
+      false,
+    );
+  });
+}
 
 test("the playground fixture covers the supported Markdown elements", async () => {
   const playground = await readFile(
@@ -118,6 +172,7 @@ test("the playground fixture covers the supported Markdown elements", async () =
   assert.match(playground, /^!\[\[Embedded Note\]\]$/m);
   assert.match(playground, /^演练场以脚注引用结束。\[\^aera\]$/m);
   assert.match(playground, /^\[\^aera\]: Aera 是用于检查 Obsidian 主题的演练 fixture。$/m);
+  assert.equal(playground.endsWith(`${fixtureOwnershipMarker}\n`), true);
 
   const embedded = await readFile(
     join(repoRoot, "fixtures", "Embedded Note.md"),
@@ -126,6 +181,7 @@ test("the playground fixture covers the supported Markdown elements", async () =
   assert.match(embedded, /^# 嵌入内容$/m);
   assert.match(embedded, /^这是一篇用于验证 `\[\[Embedded Note\]\]` 已解析内部链接与嵌入预览的中文笔记。$/m);
   assert.match(embedded, /^返回 \[\[Theme Playground\]\]。$/m);
+  assert.equal(embedded.endsWith(`${fixtureOwnershipMarker}\n`), true);
 });
 
 for (const fixtureName of fixtureNames) {

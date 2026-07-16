@@ -17,6 +17,8 @@ import { fileURLToPath } from "node:url";
 const modulePath = fileURLToPath(import.meta.url);
 const defaultRepoPath = dirname(dirname(modulePath));
 const fixtureNames = ["Theme Playground.md", "Embedded Note.md"];
+const fixtureOwnershipMarker =
+  "<!-- Aera fixture managed by obsidian-aera-theme. -->";
 
 async function existingPathType(path) {
   try {
@@ -53,6 +55,17 @@ async function assertSafeFixtureTarget(path) {
       ? "directory"
       : "non-file path";
   throw new Error(`Refusing to replace fixture ${type} at ${path}`);
+}
+
+async function assertManagedFixtureTarget(path) {
+  const existing = await existingPathType(path);
+  if (!existing) return;
+
+  await assertSafeFixtureTarget(path);
+  const contents = await readFile(path, "utf8");
+  if (!contents.trimEnd().endsWith(fixtureOwnershipMarker)) {
+    throw new Error(`Refusing to replace unknown fixture at ${path}`);
+  }
 }
 
 export async function copyFixtureSafely(
@@ -140,7 +153,7 @@ export async function linkVault(vaultPath, repoPath = defaultRepoPath) {
     source: join(repo, "fixtures", name),
   }));
   for (const { destination } of fixtures) {
-    await assertSafeFixtureTarget(destination);
+    await assertManagedFixtureTarget(destination);
   }
   for (const { destination, source } of fixtures) {
     await copyFixtureSafely(source, destination);

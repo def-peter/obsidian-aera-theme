@@ -16,7 +16,7 @@ function assertDeclarations(expected) {
 test("defines the inline title hierarchy", () => {
   assertDeclarations({
     "--inline-title-color": "var(--text-normal)",
-    "--inline-title-font": "var(--font-text-theme)",
+    "--inline-title-font": "var(--font-text)",
     "--inline-title-line-height": "1.25",
     "--inline-title-size": "2em",
     "--inline-title-weight": "650",

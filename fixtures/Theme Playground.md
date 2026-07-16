@@ -66,3 +66,5 @@ published: 2026-07-16
 演练场以脚注引用结束。[^aera]
 
 [^aera]: Aera 是用于检查 Obsidian 主题的演练 fixture。
+
+<!-- Aera fixture managed by obsidian-aera-theme. -->
