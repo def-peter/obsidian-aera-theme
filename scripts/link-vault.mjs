@@ -58,7 +58,7 @@ async function assertSafeFixtureTarget(path) {
 export async function copyFixtureSafely(
   sourcePath,
   destinationPath,
-  { createTemporaryId = randomUUID } = {},
+  { createTemporaryId = randomUUID, renameFile = rename } = {},
 ) {
   await assertSafeFixtureTarget(destinationPath);
   const contents = await readFile(sourcePath);
@@ -75,7 +75,8 @@ export async function copyFixtureSafely(
     await temporaryFile.writeFile(contents);
     await temporaryFile.close();
     temporaryFile = undefined;
-    await rename(temporaryPath, destinationPath);
+    await renameFile(temporaryPath, destinationPath);
+    ownsTemporaryPath = false;
   } finally {
     await temporaryFile?.close().catch(() => {});
     if (ownsTemporaryPath) {

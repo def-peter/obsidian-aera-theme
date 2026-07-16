@@ -8,6 +8,7 @@ import {
   readdir,
   readlink,
   realpath,
+  rename,
   rm,
   symlink,
   writeFile,
@@ -201,6 +202,26 @@ test("copyFixtureSafely never removes a conflicting temporary file it does not o
     await readFile(conflictingTemporaryFile, "utf8"),
     "other process content\n",
   );
+});
+
+test("copyFixtureSafely releases temporary path ownership after rename", async (t) => {
+  const vault = await createVault(t);
+  const source = join(vault, "Source.md");
+  const destination = join(vault, "Fixture.md");
+  const temporaryId = "reused-after-rename";
+  const temporaryPath = join(vault, `.Fixture.md.aera-${temporaryId}.tmp`);
+  await writeFile(source, "new fixture content\n");
+
+  await copyFixtureSafely(source, destination, {
+    createTemporaryId: () => temporaryId,
+    renameFile: async (from, to) => {
+      await rename(from, to);
+      await writeFile(from, "new owner content\n");
+    },
+  });
+
+  assert.equal(await readFile(destination, "utf8"), "new fixture content\n");
+  assert.equal(await readFile(temporaryPath, "utf8"), "new owner content\n");
 });
 
 test("linkVault is idempotent", async (t) => {
