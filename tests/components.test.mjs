@@ -14,6 +14,13 @@ const allowedSelectors = new Set([
   ".theme-light",
   ".theme-dark",
   "body",
+  ".callout",
+  ".callout-title",
+  ".callout-content",
+  ".callout-icon",
+  ".callout-icon svg",
+  ".callout-fold",
+  ".callout.is-collapsed .callout-icon",
   ":where(.markdown-rendered pre:not(.frontmatter))",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
 ]);
@@ -85,9 +92,9 @@ test("styles callouts without replacing semantic type colors", () => {
     "--callout-padding": "var(--size-4-3) var(--size-4-4)",
     "--callout-title-padding": "0",
     "--callout-content-padding": "var(--size-4-2) 0 0",
-    "--callout-border-width": "1px",
-    "--callout-border-opacity": "0.25",
-    "--callout-radius": "6px",
+    "--callout-border-width": "0px",
+    "--callout-border-opacity": "0",
+    "--callout-radius": "7px",
     "--callout-blend-mode": "normal",
     "--callout-title-size": "var(--font-small)",
     "--callout-title-weight": "600",
@@ -97,6 +104,62 @@ test("styles callouts without replacing semantic type colors", () => {
   for (const property of officialCalloutTypeVariables) {
     assert.equal(body.has(property), false, property);
   }
+});
+
+test("uses a borderless semantic callout surface", () => {
+  const callout = declarationsFor(css, ".callout");
+
+  assert.deepEqual(Object.fromEntries(callout), {
+    position: "relative",
+    overflow: "hidden",
+    "background-color":
+      "rgba(var(--callout-color), var(--aera-callout-background-opacity))",
+    color:
+      "color-mix(in srgb, rgb(var(--callout-color)) 72%, var(--text-normal))",
+    border: "0",
+  });
+});
+
+test("keeps callout text clear of the watermark", () => {
+  const title = declarationsFor(css, ".callout-title");
+  const content = declarationsFor(css, ".callout-content");
+
+  assert.equal(title.has("position"), false);
+  assert.deepEqual(Object.fromEntries(title), {
+    "padding-inline-end": "var(--size-4-12)",
+    color:
+      "color-mix(in srgb, rgb(var(--callout-color)) 84%, var(--text-normal))",
+  });
+  assert.deepEqual(Object.fromEntries(content), {
+    "padding-inline-end": "var(--size-4-12)",
+  });
+});
+
+test("renders the native callout icon as a non-interactive watermark", () => {
+  assert.deepEqual(Object.fromEntries(declarationsFor(css, ".callout-icon")), {
+    position: "absolute",
+    "inset-inline-end": "var(--size-4-2)",
+    "inset-block-end": "calc(var(--size-4-2) * -1)",
+    opacity: "0.09",
+    "pointer-events": "none",
+  });
+  assert.deepEqual(
+    Object.fromEntries(declarationsFor(css, ".callout-icon svg")),
+    {
+      width: "48px",
+      height: "48px",
+    },
+  );
+  assert.deepEqual(Object.fromEntries(declarationsFor(css, ".callout-fold")), {
+    position: "relative",
+    "z-index": "2",
+  });
+  assert.deepEqual(
+    Object.fromEntries(
+      declarationsFor(css, ".callout.is-collapsed .callout-icon"),
+    ),
+    { display: "none" },
+  );
 });
 
 test("defines the complete table component variables", () => {

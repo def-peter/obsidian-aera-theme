@@ -1,9 +1,59 @@
 body {
-  --callout-border-width: 1px;
-  --callout-border-opacity: 0.25;
-  --callout-radius: 6px;
+  --callout-border-width: 0px;
+  --callout-border-opacity: 0;
+  --callout-radius: 7px;
   --callout-blend-mode: normal;
   --callout-title-size: var(--font-small);
   --callout-title-weight: 600;
   --callout-content-background: transparent;
+}
+
+.callout {
+  position: relative;
+  overflow: hidden;
+  background-color: rgba(
+    var(--callout-color),
+    var(--aera-callout-background-opacity)
+  );
+  color: color-mix(
+    in srgb,
+    rgb(var(--callout-color)) 72%,
+    var(--text-normal)
+  );
+  border: 0;
+}
+
+.callout-title {
+  padding-inline-end: var(--size-4-12);
+  color: color-mix(
+    in srgb,
+    rgb(var(--callout-color)) 84%,
+    var(--text-normal)
+  );
+}
+
+.callout-content {
+  padding-inline-end: var(--size-4-12);
+}
+
+.callout-icon {
+  position: absolute;
+  inset-inline-end: var(--size-4-2);
+  inset-block-end: calc(var(--size-4-2) * -1);
+  opacity: 0.09;
+  pointer-events: none;
+}
+
+.callout-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.callout-fold {
+  position: relative;
+  z-index: 2;
+}
+
+.callout.is-collapsed .callout-icon {
+  display: none;
 }

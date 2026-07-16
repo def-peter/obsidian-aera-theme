@@ -4,6 +4,13 @@ const allowedThemeSelectors = new Set([
   ".theme-light",
   ".theme-dark",
   "body",
+  ".callout",
+  ".callout-title",
+  ".callout-content",
+  ".callout-icon",
+  ".callout-icon svg",
+  ".callout-fold",
+  ".callout.is-collapsed .callout-icon",
   ":where(.markdown-rendered pre:not(.frontmatter))",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
 ]);
