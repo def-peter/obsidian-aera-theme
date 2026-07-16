@@ -4,7 +4,10 @@ const allowedThemeSelectors = new Set([
   ".theme-light",
   ".theme-dark",
   "body",
-  ".markdown-rendered pre",
+  ":where(.markdown-rendered pre:not(.frontmatter))",
+  ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
+  ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-begin)",
+  ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-end)",
 ]);
 const officialCalloutTypeVariables = new Set([
   "--callout-bug",

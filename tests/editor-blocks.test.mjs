@@ -50,39 +50,87 @@ test("defines quote and horizontal rule variables", () => {
   });
 });
 
-test("defines semantic code variables", () => {
-  assertDeclarations({
-    "--code-background": "var(--background-secondary)",
+test("keeps inline code on the Aera grayscale", () => {
+  const codeDeclarations = Object.fromEntries(
+    [...body].filter(([property]) => property.startsWith("--code-")),
+  );
+
+  assert.deepEqual(codeDeclarations, {
+    "--code-background": "var(--aera-inline-code-background)",
+    "--code-normal": "var(--aera-inline-code-color)",
     "--code-white-space": "pre",
-    "--code-size": "0.88em",
-    "--code-normal": "var(--text-normal)",
-    "--code-comment": "var(--text-faint)",
-    "--code-function": "var(--color-blue)",
-    "--code-important": "var(--color-orange)",
-    "--code-keyword": "var(--text-accent)",
-    "--code-operator": "var(--text-muted)",
-    "--code-property": "var(--color-cyan)",
-    "--code-punctuation": "var(--text-muted)",
-    "--code-string": "var(--color-orange)",
-    "--code-tag": "var(--color-red)",
-    "--code-value": "var(--color-purple)",
+    "--code-size": ".88em",
   });
 });
 
-test("adds the single code block selector with direct border declarations", () => {
+const monokaiDeclarations = [
+  ["--code-background", "#272822"],
+  ["--code-normal", "#f8f8f2"],
+  ["--code-comment", "#929388"],
+  ["--code-function", "#a6e22e"],
+  ["--code-important", "#fd971f"],
+  ["--code-keyword", "#ff4b8b"],
+  ["--code-operator", "#f8f8f2"],
+  ["--code-punctuation", "#f8f8f2"],
+  ["--code-property", "#66d9ef"],
+  ["--code-string", "#e6db74"],
+  ["--code-tag", "#ff4b8b"],
+  ["--code-value", "#ae81ff"],
+  ["background-color", "#272822"],
+  ["color", "#f8f8f2"],
+  ["border", "1px solid #3e3d32"],
+];
+
+function directDeclarations(selector) {
   const rules = [];
 
   postcss.parse(css).walkRules((rule) => {
-    if (rule.selector === ".markdown-rendered pre") rules.push(rule);
+    if (rule.selector === selector) rules.push(rule);
   });
 
   assert.equal(rules.length, 1);
-  const declarations = rules[0].nodes.filter((node) => node.type === "decl");
+  return rules[0].nodes
+    .filter((node) => node.type === "decl")
+    .map(({ prop, value }) => [prop, value]);
+}
+
+test("styles reading code blocks with direct Monokai declarations", () => {
   assert.deepEqual(
-    declarations.map(({ prop, value }) => [prop, value]),
+    directDeclarations(":where(.markdown-rendered pre:not(.frontmatter))"),
+    [...monokaiDeclarations, ["border-radius", "6px"]],
+  );
+});
+
+test("styles CM6 code block lines with direct Monokai declarations", () => {
+  assert.deepEqual(
+    directDeclarations(
+      ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
+    ),
     [
-      ["border", "var(--border-width) solid var(--background-modifier-border)"],
-      ["border-radius", "6px"],
+      ...monokaiDeclarations,
+      ["border-block-width", "0"],
+      ["border-radius", "0"],
+    ],
+  );
+});
+
+test("restores the CM6 code block boundary borders and radii", () => {
+  assert.deepEqual(
+    directDeclarations(
+      ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-begin)",
+    ),
+    [
+      ["border-block-start-width", "1px"],
+      ["border-radius", "6px 6px 0 0"],
+    ],
+  );
+  assert.deepEqual(
+    directDeclarations(
+      ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-end)",
+    ),
+    [
+      ["border-block-end-width", "1px"],
+      ["border-radius", "0 0 6px 6px"],
     ],
   );
 });

@@ -1,22 +1,46 @@
+@mixin monokai-block {
+  --code-background: #272822;
+  --code-normal: #f8f8f2;
+  --code-comment: #929388;
+  --code-function: #a6e22e;
+  --code-important: #fd971f;
+  --code-keyword: #ff4b8b;
+  --code-operator: #f8f8f2;
+  --code-punctuation: #f8f8f2;
+  --code-property: #66d9ef;
+  --code-string: #e6db74;
+  --code-tag: #ff4b8b;
+  --code-value: #ae81ff;
+  background-color: #272822;
+  color: #f8f8f2;
+  border: 1px solid #3e3d32;
+}
+
 body {
-  --code-background: var(--background-secondary);
+  --code-background: var(--aera-inline-code-background);
+  --code-normal: var(--aera-inline-code-color);
   --code-white-space: pre;
-  --code-size: 0.88em;
-  --code-normal: var(--text-normal);
-  --code-comment: var(--text-faint);
-  --code-function: var(--color-blue);
-  --code-important: var(--color-orange);
-  --code-keyword: var(--text-accent);
-  --code-operator: var(--text-muted);
-  --code-property: var(--color-cyan);
-  --code-punctuation: var(--text-muted);
-  --code-string: var(--color-orange);
-  --code-tag: var(--color-red);
-  --code-value: var(--color-purple);
+  --code-size: .88em;
 }
 
 /* Obsidian has no code-block border or radius variable. */
-.markdown-rendered pre {
-  border: var(--border-width) solid var(--background-modifier-border);
+:where(.markdown-rendered pre:not(.frontmatter)) {
+  @include monokai-block;
   border-radius: 6px;
+}
+
+:where(.markdown-source-view.mod-cm6 .HyperMD-codeblock) {
+  @include monokai-block;
+  border-block-width: 0;
+  border-radius: 0;
+}
+
+:where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-begin) {
+  border-block-start-width: 1px;
+  border-radius: 6px 6px 0 0;
+}
+
+:where(.markdown-source-view.mod-cm6 .HyperMD-codeblock-end) {
+  border-block-end-width: 1px;
+  border-radius: 0 0 6px 6px;
 }
