@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -116,6 +119,14 @@ test("six core foreground/background pairs meet WCAG AA contrast", () => {
   }
 });
 
+test("core contrast ratios match the WCAG calculations", () => {
+  const expectedRatios = ["12.72", "4.53", "5.23", "13.32", "6.57", "7.38"];
+
+  for (const [index, [, foreground, background]] of CORE_CONTRAST_PAIRS.entries()) {
+    assert.equal(contrastRatio(foreground, background).toFixed(2), expectedRatios[index]);
+  }
+});
+
 test("contrast calculation matches WCAG reference endpoints", () => {
   assert.equal(contrastRatio("#000000", "#ffffff"), 21);
   assert.equal(contrastRatio("#68756d", "#68756d"), 1);
@@ -134,6 +145,28 @@ test("contrast CLI prints all six pairs", () => {
   for (const [index, [name]] of CORE_CONTRAST_PAIRS.entries()) {
     assert.match(lines[index], new RegExp(`^PASS ${name}:`));
   }
+});
+
+test("contrast CLI runs when invoked through a symbolic link", (t) => {
+  const directory = mkdtempSync(join(tmpdir(), "aera-contrast-cli-"));
+  const symlinkPath = join(directory, "contrast.mjs");
+  const cliPath = fileURLToPath(new URL("../scripts/contrast.mjs", import.meta.url));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+
+  try {
+    symlinkSync(cliPath, symlinkPath);
+  } catch (error) {
+    if (["EACCES", "EPERM"].includes(error.code)) {
+      t.skip("creating symbolic links is not permitted in this environment");
+      return;
+    }
+    throw error;
+  }
+
+  const result = spawnSync(process.execPath, [symlinkPath], { encoding: "utf8" });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /PASS light text:/);
 });
 
 test("contrast CLI marks a failing pair and requests exit code 1", () => {

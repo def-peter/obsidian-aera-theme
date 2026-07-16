@@ -1,4 +1,5 @@
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
@@ -58,6 +59,10 @@ export function runContrastCli(
   if (failed) process.exitCode = 1;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+const isDirectRun =
+  process.argv[1] !== undefined &&
+  realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
+
+if (isDirectRun) {
   runContrastCli();
 }

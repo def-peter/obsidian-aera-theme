@@ -7,9 +7,9 @@ export function declarationsFor(css, selector) {
   root.walkRules((rule) => {
     if (rule.selector !== selector) return;
 
-    rule.walkDecls((declaration) => {
-      declarations.set(declaration.prop, declaration.value);
-    });
+    for (const node of rule.nodes ?? []) {
+      if (node.type === "decl") declarations.set(node.prop, node.value);
+    }
   });
 
   return declarations;
