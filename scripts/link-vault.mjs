@@ -1,13 +1,17 @@
+import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
 import {
-  copyFile,
   lstat,
   mkdir,
+  open,
+  readFile,
   readlink,
   realpath,
+  rename,
+  rm,
   symlink,
 } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const modulePath = fileURLToPath(import.meta.url);
@@ -36,7 +40,69 @@ async function pointsToRepository(linkPath, repoPath) {
 }
 
 function singleLine(value) {
-  return String(value).replace(/\s+/g, " ").trim();
+  return String(value).replace(/[\u0000-\u001f\u007f]+/g, " ");
+}
+
+async function assertSafeFixtureTarget(path) {
+  const existing = await existingPathType(path);
+  if (!existing || existing.isFile()) return;
+
+  const type = existing.isSymbolicLink()
+    ? "symlink"
+    : existing.isDirectory()
+      ? "directory"
+      : "non-file path";
+  throw new Error(`Refusing to replace fixture ${type} at ${path}`);
+}
+
+export async function copyFixtureSafely(
+  sourcePath,
+  destinationPath,
+  { createTemporaryId = randomUUID } = {},
+) {
+  await assertSafeFixtureTarget(destinationPath);
+  const contents = await readFile(sourcePath);
+  const temporaryPath = join(
+    dirname(destinationPath),
+    `.${basename(destinationPath)}.aera-${createTemporaryId()}.tmp`,
+  );
+  let temporaryFile;
+  let ownsTemporaryPath = false;
+
+  try {
+    temporaryFile = await open(temporaryPath, "wx");
+    ownsTemporaryPath = true;
+    await temporaryFile.writeFile(contents);
+    await temporaryFile.close();
+    temporaryFile = undefined;
+    await rename(temporaryPath, destinationPath);
+  } finally {
+    await temporaryFile?.close().catch(() => {});
+    if (ownsTemporaryPath) {
+      await rm(temporaryPath, { force: true });
+    }
+  }
+}
+
+export function linkTypeForPlatform(platform) {
+  return platform === "win32" ? "junction" : "dir";
+}
+
+export async function verifyThemeLink(linkPath, repoPath) {
+  let finalTarget;
+  try {
+    finalTarget = await realpath(linkPath);
+  } catch (error) {
+    throw new Error(
+      `Aera theme link verification failed at ${linkPath}: ${error.message}`,
+    );
+  }
+
+  if (finalTarget !== repoPath) {
+    throw new Error(
+      `Aera theme link verification failed: ${linkPath} does not point to the repository`,
+    );
+  }
 }
 
 export async function linkVault(vaultPath, repoPath = defaultRepoPath) {
@@ -65,14 +131,20 @@ export async function linkVault(vaultPath, repoPath = defaultRepoPath) {
       );
     }
   } else {
-    await symlink(repo, linkPath, "dir");
+    await symlink(repo, linkPath, linkTypeForPlatform(process.platform));
   }
 
-  await Promise.all(
-    fixtureNames.map((name) =>
-      copyFile(join(repo, "fixtures", name), join(vault, name)),
-    ),
-  );
+  const fixtures = fixtureNames.map((name) => ({
+    destination: join(vault, name),
+    source: join(repo, "fixtures", name),
+  }));
+  for (const { destination } of fixtures) {
+    await assertSafeFixtureTarget(destination);
+  }
+  for (const { destination, source } of fixtures) {
+    await copyFixtureSafely(source, destination);
+  }
+  await verifyThemeLink(linkPath, repo);
 
   return vault;
 }

@@ -6,32 +6,34 @@ topics:
 published: 2026-07-16
 ---
 
-# Aera Theme Playground
+# Aera 主题演练场
 
-中文排版与 English typography should feel balanced. This paragraph includes normal text, **bold text**, *italic text*, ==highlighted text==, and `inline code`.
+中文排版与少量 English typography 应当保持协调。
 
-## Links
+正文包含普通文字、**粗体文字**、*斜体文字*、==高亮文字== 与 `行内代码`。
 
-Resolved link: [[Embedded Note]]
-Unresolved link: [[Missing Note]]
-External link: [Obsidian](https://obsidian.md)
+## 链接
 
-### Lists and quote
+已解析链接：[[Embedded Note]]
+未解析链接：[[Missing Note]]
+外部链接：[Obsidian](https://obsidian.md)
 
-> A blockquote for checking rhythm, borders, and muted text.
+### 列表与引用
 
-1. Ordered item
-   1. Nested ordered item
-2. Another ordered item
+> 这是一段用于检查节奏、边框和弱化文字的普通引用。
 
-- Unordered item
-  - Nested unordered item
-- Another unordered item
+1. 有序列表项
+   1. 嵌套有序列表项
+2. 另一个有序列表项
 
-- [x] Completed task
-- [ ] Pending task
+- 无序列表项
+  - 嵌套无序列表项
+- 另一个无序列表项
 
-#### Code
+- [x] 已完成任务
+- [ ] 待完成任务
+
+#### 代码
 
 ```css
 .aera-playground {
@@ -42,25 +44,25 @@ External link: [Obsidian](https://obsidian.md)
 
 ---
 
-##### Callouts
+##### 标注框
 
-> [!note] Note callout
-> A calm piece of supporting information.
+> [!note] 提示
+> 这是一条平静的补充信息。
 
-> [!warning] Warning callout
-> Something here deserves closer attention.
+> [!warning] 警告
+> 此处内容需要重点关注。
 
-###### Table, tags, embed, and footnote
+###### 表格、标签、嵌入与脚注
 
-| Element | State | Purpose |
+| 元素 | 状态 | 用途 |
 | --- | --- | --- |
-| Link | Resolved | Navigation |
-| Task | Pending | Interaction |
+| 链接 | 已解析 | 导航 |
+| 任务 | 待完成 | 交互 |
 
-#aera/theme #playground
+#Aera主题 #视觉检查
 
 ![[Embedded Note]]
 
-The playground ends with a footnote reference.[^aera]
+演练场以脚注引用结束。[^aera]
 
-[^aera]: Aera is a focused Obsidian theme fixture.
+[^aera]: Aera 是用于检查 Obsidian 主题的演练 fixture。

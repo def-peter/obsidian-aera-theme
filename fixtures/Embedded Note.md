@@ -1,5 +1,5 @@
-# Embedded Note
+# 嵌入内容
 
-This note makes `[[Embedded Note]]` a resolved internal link and provides content for the embed preview.
+这是一篇用于验证 `[[Embedded Note]]` 已解析内部链接与嵌入预览的中文笔记。
 
 返回 [[Theme Playground]]。
