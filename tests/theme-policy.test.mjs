@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -27,6 +27,14 @@ function runCli(args = [], cwd = repoRoot) {
     cwd,
     encoding: "utf8",
   });
+}
+
+function readRepoManifestVersion() {
+  return JSON.parse(readFileSync(join(repoRoot, "manifest.json"), "utf8")).version;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function createThemeFixture(t, overrides = {}) {
@@ -220,7 +228,9 @@ test("validateReleaseTag rejects a mismatched release tag", () => {
 });
 
 test("check-theme CLI accepts an omitted or matching release tag", () => {
-  for (const args of [[], ["--release-tag", "0.1.0"]]) {
+  const releaseVersion = readRepoManifestVersion();
+
+  for (const args of [[], ["--release-tag", releaseVersion]]) {
     const result = runCli(args);
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /Theme policy checks passed/);
@@ -228,10 +238,17 @@ test("check-theme CLI accepts an omitted or matching release tag", () => {
 });
 
 test("check-theme CLI rejects a mismatched release tag", () => {
-  const result = runCli(["--release-tag", "1.0.0"]);
+  const releaseVersion = readRepoManifestVersion();
+  const mismatchedVersion = releaseVersion === "9.9.9" ? "8.8.8" : "9.9.9";
+  const result = runCli(["--release-tag", mismatchedVersion]);
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /^ERROR: release tag 1\.0\.0 must equal 0\.1\.0\n$/);
+  assert.match(
+    result.stderr,
+    new RegExp(
+      `^ERROR: release tag ${escapeRegExp(mismatchedVersion)} must equal ${escapeRegExp(releaseVersion)}\\n$`,
+    ),
+  );
 });
 
 test("check-theme CLI rejects a release-tag option without a value", () => {
