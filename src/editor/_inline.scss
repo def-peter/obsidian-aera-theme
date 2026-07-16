@@ -1,0 +1,18 @@
+body {
+  --bold-color: var(--text-normal);
+  --italic-color: var(--text-normal);
+  --link-color: var(--text-accent);
+  --link-color-hover: var(--text-accent-hover);
+  --link-decoration: none;
+  --link-decoration-hover: underline;
+  --link-decoration-thickness: 1px;
+  --link-weight: 500;
+  --link-unresolved-color: var(--text-muted);
+  --link-unresolved-opacity: 1;
+  --link-unresolved-decoration-style: dotted;
+  --link-unresolved-decoration-color: var(--text-faint);
+  --link-external-color: var(--text-accent);
+  --link-external-color-hover: var(--text-accent-hover);
+  --link-external-decoration: none;
+  --link-external-decoration-hover: underline;
+}
