@@ -4,12 +4,17 @@ import { fileURLToPath } from "node:url";
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 export const CORE_CONTRAST_PAIRS = [
-  ["light text", "#28302c", "#f7f8f6"],
-  ["light muted", "#68756d", "#f7f8f6"],
-  ["light accent", "#3f725b", "#f7f8f6"],
-  ["dark text", "#dce4df", "#171c19"],
-  ["dark muted", "#95a39b", "#171c19"],
-  ["dark accent", "#76b795", "#171c19"],
+  ["light text", "#202936", "#f8fafc"],
+  ["light muted", "#647184", "#f8fafc"],
+  ["light text accent", "#005ee2", "#f8fafc"],
+  ["dark text", "#e7ebf0", "#17191c"],
+  ["dark muted", "#9aa5b4", "#17191c"],
+  ["dark text accent", "#4096ff", "#17191c"],
+  ["light inline code", "#566273", "#d9dee5"],
+  ["dark inline code", "#b8c0cc", "#2a2f36"],
+  ["monokai normal", "#f8f8f2", "#272822"],
+  ["monokai comment", "#929388", "#272822"],
+  ["monokai keyword", "#ff4b8b", "#272822"],
 ];
 
 function rgbChannels(hex) {

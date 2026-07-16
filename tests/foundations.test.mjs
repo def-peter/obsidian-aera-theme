@@ -44,50 +44,69 @@ test("body defines the Aera reading typography without overriding user sizing", 
 
 const expectedColors = {
   ".theme-light": {
-    "--color-base-00": "#f7f8f6",
-    "--color-base-05": "#f4f5f3",
-    "--color-base-10": "#eff1ef",
-    "--color-base-20": "#e8ebe8",
-    "--color-base-25": "#dde2de",
-    "--color-base-30": "#d1d7d2",
-    "--color-base-35": "#c4cbc5",
-    "--color-base-40": "#aeb7b0",
-    "--color-base-50": "#8b958e",
-    "--color-base-60": "#68756d",
-    "--color-base-70": "#4e5b53",
-    "--color-base-100": "#28302c",
+    "--color-base-00": "#f8fafc",
+    "--color-base-05": "#f5f7fa",
+    "--color-base-10": "#f1f4f8",
+    "--color-base-20": "#e9eef5",
+    "--color-base-25": "#dde3eb",
+    "--color-base-30": "#cdd5df",
+    "--color-base-35": "#bec8d4",
+    "--color-base-40": "#a9b4c2",
+    "--color-base-50": "#8793a3",
+    "--color-base-60": "#647184",
+    "--color-base-70": "#475467",
+    "--color-base-100": "#202936",
     "--background-primary": "var(--color-base-00)",
     "--background-secondary": "var(--color-base-10)",
     "--text-normal": "var(--color-base-100)",
     "--text-muted": "var(--color-base-60)",
     "--text-faint": "var(--color-base-50)",
-    "--text-highlight-bg": "rgba(191, 168, 68, 0.26)",
-    "--accent-h": "152.9",
-    "--accent-s": "28.8%",
-    "--accent-l": "34.7%",
+    "--text-highlight-bg": "rgba(245, 198, 50, 0.22)",
+    "--accent-h": "215",
+    "--accent-s": "100%",
+    "--accent-l": "54.3%",
+    "--interactive-accent": "hsl(var(--accent-h), var(--accent-s), var(--accent-l))",
+    "--text-accent":
+      "hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 10%))",
+    "--text-accent-hover":
+      "hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 14%))",
+    "--aera-inline-code-background": "#d9dee5",
+    "--aera-inline-code-color": "#566273",
+    "--aera-callout-background-opacity": "0.08",
+    "--aera-quote-background": "#f1f3f6",
+    "--aera-quote-fold": "#d9dee5",
   },
   ".theme-dark": {
-    "--color-base-00": "#171c19",
-    "--color-base-05": "#1a201c",
-    "--color-base-10": "#202720",
-    "--color-base-20": "#262e29",
-    "--color-base-25": "#2d3630",
-    "--color-base-30": "#364139",
-    "--color-base-35": "#414d45",
-    "--color-base-40": "#526058",
-    "--color-base-50": "#6d7b72",
-    "--color-base-60": "#95a39b",
-    "--color-base-70": "#bbc7c0",
-    "--color-base-100": "#dce4df",
+    "--color-base-00": "#17191c",
+    "--color-base-05": "#1b1e22",
+    "--color-base-10": "#20242a",
+    "--color-base-20": "#282d34",
+    "--color-base-25": "#30363e",
+    "--color-base-30": "#39414b",
+    "--color-base-35": "#46505c",
+    "--color-base-40": "#596575",
+    "--color-base-50": "#748092",
+    "--color-base-60": "#9aa5b4",
+    "--color-base-70": "#c1c7d0",
+    "--color-base-100": "#e7ebf0",
     "--background-primary": "var(--color-base-00)",
     "--background-secondary": "var(--color-base-10)",
     "--text-normal": "var(--color-base-100)",
     "--text-muted": "var(--color-base-60)",
     "--text-faint": "var(--color-base-50)",
-    "--text-highlight-bg": "rgba(191, 168, 68, 0.28)",
-    "--accent-h": "148.6",
-    "--accent-s": "31.1%",
-    "--accent-l": "59%",
+    "--text-highlight-bg": "rgba(245, 198, 50, 0.26)",
+    "--accent-h": "213",
+    "--accent-s": "100%",
+    "--accent-l": "62.5%",
+    "--interactive-accent": "hsl(var(--accent-h), var(--accent-s), var(--accent-l))",
+    "--text-accent": "hsl(var(--accent-h), var(--accent-s), var(--accent-l))",
+    "--text-accent-hover":
+      "hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) + 5%))",
+    "--aera-inline-code-background": "#2a2f36",
+    "--aera-inline-code-color": "#b8c0cc",
+    "--aera-callout-background-opacity": "0.12",
+    "--aera-quote-background": "#22262c",
+    "--aera-quote-fold": "#3a414a",
   },
 };
 
@@ -101,14 +120,19 @@ for (const [selector, expected] of Object.entries(expectedColors)) {
   });
 }
 
-test("six core foreground/background pairs meet WCAG AA contrast", () => {
+test("eleven core foreground/background pairs meet WCAG AA contrast", () => {
   assert.deepEqual(CORE_CONTRAST_PAIRS, [
-    ["light text", "#28302c", "#f7f8f6"],
-    ["light muted", "#68756d", "#f7f8f6"],
-    ["light accent", "#3f725b", "#f7f8f6"],
-    ["dark text", "#dce4df", "#171c19"],
-    ["dark muted", "#95a39b", "#171c19"],
-    ["dark accent", "#76b795", "#171c19"],
+    ["light text", "#202936", "#f8fafc"],
+    ["light muted", "#647184", "#f8fafc"],
+    ["light text accent", "#005ee2", "#f8fafc"],
+    ["dark text", "#e7ebf0", "#17191c"],
+    ["dark muted", "#9aa5b4", "#17191c"],
+    ["dark text accent", "#4096ff", "#17191c"],
+    ["light inline code", "#566273", "#d9dee5"],
+    ["dark inline code", "#b8c0cc", "#2a2f36"],
+    ["monokai normal", "#f8f8f2", "#272822"],
+    ["monokai comment", "#929388", "#272822"],
+    ["monokai keyword", "#ff4b8b", "#272822"],
   ]);
 
   for (const [name, foreground, background] of CORE_CONTRAST_PAIRS) {
@@ -120,7 +144,19 @@ test("six core foreground/background pairs meet WCAG AA contrast", () => {
 });
 
 test("core contrast ratios match the WCAG calculations", () => {
-  const expectedRatios = ["12.72", "4.53", "5.23", "13.32", "6.57", "7.38"];
+  const expectedRatios = [
+    "14.02",
+    "4.74",
+    "5.43",
+    "14.71",
+    "7.06",
+    "5.89",
+    "4.58",
+    "7.35",
+    "13.94",
+    "4.78",
+    "4.69",
+  ];
 
   for (const [index, [, foreground, background]] of CORE_CONTRAST_PAIRS.entries()) {
     assert.equal(contrastRatio(foreground, background).toFixed(2), expectedRatios[index]);
@@ -129,10 +165,10 @@ test("core contrast ratios match the WCAG calculations", () => {
 
 test("contrast calculation matches WCAG reference endpoints", () => {
   assert.equal(contrastRatio("#000000", "#ffffff"), 21);
-  assert.equal(contrastRatio("#68756d", "#68756d"), 1);
+  assert.equal(contrastRatio("#647184", "#647184"), 1);
 });
 
-test("contrast CLI prints all six pairs", () => {
+test("contrast CLI prints all eleven pairs", () => {
   const result = spawnSync(
     process.execPath,
     [fileURLToPath(new URL("../scripts/contrast.mjs", import.meta.url))],
@@ -141,7 +177,7 @@ test("contrast CLI prints all six pairs", () => {
   const lines = result.stdout.trim().split("\n");
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(lines.length, 6);
+  assert.equal(lines.length, 11);
   for (const [index, [name]] of CORE_CONTRAST_PAIRS.entries()) {
     assert.match(lines[index], new RegExp(`^PASS ${name}:`));
   }
@@ -188,7 +224,7 @@ test("contrast CLI marks a failing pair and requests exit code 1", () => {
 });
 
 test("contrast helpers reject invalid hex colors with a clear error", () => {
-  for (const value of ["#fff", "28302c", "#gggggg", "#1234567", 42]) {
+  for (const value of ["#fff", "202936", "#gggggg", "#1234567", 42]) {
     assert.throws(
       () => relativeLuminance(value),
       (error) =>
@@ -198,7 +234,7 @@ test("contrast helpers reject invalid hex colors with a clear error", () => {
   }
 
   assert.throws(
-    () => contrastRatio("#28302c", "not-a-color"),
+    () => contrastRatio("#202936", "not-a-color"),
     /Invalid hex color: not-a-color/,
   );
 });
