@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "sass --watch --no-source-map --style=expanded --no-error-css src/theme.scss:theme.css",
     "build": "sass --no-source-map --style=expanded --no-error-css src/theme.scss theme.css",
+    "link:vault": "node scripts/link-vault.mjs",
     "test": "node --test",
     "check": "npm run build && node --test && node scripts/check-theme.mjs && node scripts/contrast.mjs"
   },
