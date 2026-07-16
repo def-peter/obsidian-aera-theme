@@ -115,7 +115,7 @@ export function validateCss(css) {
       errors.add("theme.css must not contain !important");
     }
 
-    const property = declaration.prop.toLowerCase();
+    const property = declaration.prop;
     if (property === "--font-text-size") {
       errors.add("theme.css must not assign --font-text-size");
     }
@@ -130,10 +130,9 @@ export function validateCss(css) {
     }
   });
 
-  root.walkAtRules("import", (atRule) => {
-    const remoteImport = /^\s*["']?\s*(?:https?:)?\/\//i;
-    if (remoteImport.test(atRule.params) || remoteUrl.test(atRule.params)) {
-      errors.add("theme.css must not load a remote URL");
+  root.walkAtRules((atRule) => {
+    if (atRule.name.toLowerCase() === "import") {
+      errors.add("theme.css must not contain @import");
     }
   });
 

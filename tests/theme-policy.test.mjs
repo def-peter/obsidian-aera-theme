@@ -168,14 +168,34 @@ test("validateCss accepts CSS that follows theme policy", () => {
   assert.deepEqual(validateCss(":root { --aera-accent: #3d6b5f; }"), []);
 });
 
-test("validateCss rejects remote imports and protocol-relative URLs", () => {
+test("validateCss rejects every runtime import", () => {
   for (const css of [
     '@import "https://example.com/theme.css";',
-    "@import url(//example.com/theme.css);",
-    ".hero { background: url(//example.com/image.png); }",
+    '@IMPORT "local.css";',
+    "@ImPoRt url(//example.com/theme.css);",
+    '@import "\\68 ttps://example.com/theme.css";',
   ]) {
-    assert.match(validateCss(css).join("\n"), /remote URL/);
+    assert.match(validateCss(css).join("\n"), /theme\.css must not contain @import/);
   }
+});
+
+test("validateCss rejects protocol-relative URLs in declarations", () => {
+  assert.match(
+    validateCss(".hero { background: url(//example.com/image.png); }").join("\n"),
+    /remote URL/,
+  );
+});
+
+test("validateCss preserves custom property case sensitivity", () => {
+  const css = `
+    :root {
+      --FONT-TEXT-SIZE: 16px;
+      --FILE-LINE-WIDTH: 48rem;
+      --FONT-INTERFACE-THEME: Inter;
+    }
+  `;
+
+  assert.deepEqual(validateCss(css), []);
 });
 
 test("validateCss ignores policy-like text inside ordinary comments", () => {
