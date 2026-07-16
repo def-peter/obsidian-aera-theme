@@ -1,7 +1,17 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
-import { open, readFile, rename, rm } from "node:fs/promises";
-import { basename, dirname, join } from "node:path";
+import {
+  mkdir,
+  open,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  rmdir,
+  stat,
+} from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 
@@ -11,6 +21,8 @@ const modulePath = fileURLToPath(import.meta.url);
 const lockName = ".aera-version-bump.lock";
 const lockTimeoutMs = 30_000;
 const lockRetryMs = 10;
+const malformedLockStaleMs = 1_000;
+const retryLockCode = "AERA_LOCK_RETRY";
 
 function throwValidationErrors(errors, context = "") {
   if (errors.length) {
@@ -87,34 +99,257 @@ async function stageFile(path, contents, id) {
       },
     };
   } catch (error) {
-    await temporaryFile?.close().catch(() => {});
-    if (ownsTemporaryPath) await rm(temporaryPath, { force: true }).catch(() => {});
+    const cleanupFailures = [];
+    try {
+      await temporaryFile?.close();
+    } catch (cleanupFailure) {
+      cleanupFailures.push({ action: "close", error: cleanupFailure });
+    }
+    if (ownsTemporaryPath) {
+      try {
+        await rm(temporaryPath, { force: true });
+        ownsTemporaryPath = false;
+      } catch (cleanupFailure) {
+        cleanupFailures.push({ action: "remove", error: cleanupFailure });
+      }
+    }
+    if (cleanupFailures.length) {
+      throw stageCleanupError(
+        error,
+        temporaryPath,
+        cleanupFailures,
+        ownsTemporaryPath,
+      );
+    }
     throw error;
   }
 }
 
+async function inspectLockOwner(ownerPath) {
+  try {
+    const [contents, metadata] = await Promise.all([
+      readFile(ownerPath, "utf8"),
+      stat(ownerPath),
+    ]);
+    let owner;
+    try {
+      owner = JSON.parse(contents);
+    } catch {
+      owner = null;
+    }
+    const validOwner =
+      owner &&
+      typeof owner.token === "string" &&
+      owner.token.length > 0 &&
+      Number.isSafeInteger(owner.pid) &&
+      owner.pid > 0 &&
+      typeof owner.createdAt === "number";
+    return {
+      createdAt: validOwner ? owner.createdAt : null,
+      identity: validOwner
+        ? `token:${owner.token}`
+        : `invalid:${metadata.dev}:${metadata.ino}:${metadata.mtimeMs}:${contents}`,
+      mtimeMs: metadata.mtimeMs,
+      pid: validOwner ? owner.pid : null,
+      token: validOwner ? owner.token : null,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function inspectLock(lockPath) {
+  try {
+    const [entries, metadata] = await Promise.all([
+      readdir(lockPath, { withFileTypes: true }),
+      stat(lockPath),
+    ]);
+    if (entries.length === 0) {
+      return {
+        mtimeMs: metadata.mtimeMs,
+        owner: null,
+        ownerPath: null,
+        removable: true,
+      };
+    }
+    if (
+      entries.length === 1 &&
+      entries[0].isFile() &&
+      entries[0].name.endsWith(".json")
+    ) {
+      const ownerPath = join(lockPath, entries[0].name);
+      const owner = await inspectLockOwner(ownerPath);
+      return {
+        mtimeMs: owner?.mtimeMs ?? metadata.mtimeMs,
+        owner,
+        ownerPath,
+        removable: true,
+      };
+    }
+    return {
+      mtimeMs: metadata.mtimeMs,
+      owner: null,
+      ownerPath: null,
+      removable: false,
+    };
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+function processIsRunning(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return error?.code !== "ESRCH";
+  }
+}
+
+function lockIsStale(lock) {
+  if (!lock.removable) return false;
+  if (lock.owner?.pid !== null && lock.owner?.pid !== undefined) {
+    return !processIsRunning(lock.owner.pid);
+  }
+  return Date.now() - lock.mtimeMs >= malformedLockStaleMs;
+}
+
+async function removeLockDirectory(lockPath) {
+  try {
+    await rmdir(lockPath);
+    return true;
+  } catch (error) {
+    if (
+      error?.code === "ENOENT" ||
+      error?.code === "ENOTEMPTY" ||
+      error?.code === "EEXIST"
+    ) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+async function releaseDirectoryLock(lockPath, ownerPath, token) {
+  const owner = await inspectLockOwner(ownerPath);
+  if (owner?.token !== token) return;
+
+  try {
+    await rm(ownerPath);
+  } catch (error) {
+    if (error?.code === "ENOENT") return;
+    throw error;
+  }
+  await removeLockDirectory(lockPath);
+}
+
+async function removeStaleLock(lockPath, observed) {
+  if (observed.ownerPath) {
+    const currentOwner = await inspectLockOwner(observed.ownerPath);
+    if (currentOwner?.identity !== observed.owner?.identity) return false;
+    try {
+      await rm(observed.ownerPath);
+    } catch (error) {
+      if (error?.code === "ENOENT") return false;
+      throw error;
+    }
+  }
+  return removeLockDirectory(lockPath);
+}
+
+async function createDirectoryLock(lockPath) {
+  const token = randomUUID();
+  const ownerPath = join(lockPath, `${token}.json`);
+  const preparedOwnerPath = join(
+    dirname(lockPath),
+    `.aera-version-bump-owner-${token}.tmp`,
+  );
+  let lockFile;
+  try {
+    lockFile = await open(preparedOwnerPath, "wx");
+    await lockFile.writeFile(
+      `${JSON.stringify({ token, pid: process.pid, createdAt: Date.now() })}\n`,
+    );
+    await lockFile.close();
+  } catch (error) {
+    await lockFile?.close().catch(() => {});
+    await rm(preparedOwnerPath, { force: true }).catch(() => {});
+    throw error;
+  }
+
+  try {
+    await mkdir(lockPath);
+  } catch (error) {
+    try {
+      await rm(preparedOwnerPath);
+    } catch (cleanupFailure) {
+      throw stageCleanupError(
+        error,
+        preparedOwnerPath,
+        [{ action: "remove", error: cleanupFailure }],
+        true,
+      );
+    }
+    throw error;
+  }
+
+  let publicationError;
+  try {
+    await rename(preparedOwnerPath, ownerPath);
+    const published = await inspectLock(lockPath);
+    if (
+      published?.owner?.token !== token ||
+      published.ownerPath !== ownerPath
+    ) {
+      publicationError = new Error("version lock owner publication lost its gate");
+    }
+  } catch (error) {
+    publicationError = error;
+  }
+
+  if (publicationError) {
+    await rm(preparedOwnerPath, { force: true }).catch(() => {});
+    await rm(ownerPath, { force: true }).catch(() => {});
+    await removeLockDirectory(lockPath).catch(() => {});
+    const retryError = new Error(
+      `could not publish version lock owner ${ownerPath}: ${errorMessage(publicationError)}`,
+    );
+    retryError.code = retryLockCode;
+    throw retryError;
+  }
+
+  return {
+    async release() {
+      await releaseDirectoryLock(lockPath, ownerPath, token);
+    },
+  };
+}
+
 async function acquireDirectoryLock(directory) {
   const lockPath = join(directory, lockName);
-  const deadline = Date.now() + lockTimeoutMs;
+  const deadline = performance.now() + lockTimeoutMs;
 
   while (true) {
     try {
-      const lockFile = await open(lockPath, "wx");
-      let ownsLock = true;
-      return {
-        async release() {
-          await lockFile.close();
-          if (ownsLock) {
-            await rm(lockPath, { force: true });
-            ownsLock = false;
-          }
-        },
-      };
+      return await createDirectoryLock(lockPath);
     } catch (error) {
+      if (error?.code === retryLockCode) {
+        if (performance.now() >= deadline) throw error;
+        await delay(lockRetryMs);
+        continue;
+      }
       if (error?.code !== "EEXIST") {
         throw new Error(`could not acquire version lock ${lockPath}: ${error.message}`);
       }
-      if (Date.now() >= deadline) {
+
+      const observed = await inspectLock(lockPath);
+      if (observed && lockIsStale(observed)) {
+        await removeStaleLock(lockPath, observed);
+        continue;
+      }
+      if (performance.now() >= deadline) {
         throw new Error(`timed out waiting for version lock ${lockPath}`);
       }
       await delay(lockRetryMs);
@@ -124,6 +359,17 @@ async function acquireDirectoryLock(directory) {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function stageCleanupError(originalError, path, failures, retained) {
+  const details = failures
+    .map(({ action, error }) => `${action} ${path}: ${errorMessage(error)}`)
+    .join("; ");
+  const retainedDetails = retained ? `; temporary retained at ${path}` : "";
+  return new AggregateError(
+    [originalError, ...failures.map(({ error }) => error)],
+    `${errorMessage(originalError)}; cleanup failed: ${details}${retainedDetails}`,
+  );
 }
 
 function rollbackError(originalError, failures) {
@@ -164,6 +410,36 @@ function cleanupError(originalError, failures) {
   return new AggregateError(
     [originalError, ...failures.map(({ error }) => error)],
     `${errorMessage(originalError)}; cleanup failed: ${details}`,
+  );
+}
+
+async function cleanupBackups(staged) {
+  const results = await Promise.all(
+    staged
+      .filter((file) => file.backupOwned)
+      .map(async (file) => {
+        try {
+          await rm(file.backup);
+          file.backupOwned = false;
+          return null;
+        } catch (error) {
+          return { backup: file.backup, error };
+        }
+      }),
+  );
+  return results.filter(Boolean);
+}
+
+function backupCleanupError(failures) {
+  const details = failures
+    .map(
+      ({ backup, error }) =>
+        `${backup}: ${errorMessage(error)}; backup retained at ${backup}`,
+    )
+    .join("; ");
+  return new AggregateError(
+    failures.map(({ error }) => error),
+    `backup cleanup failed: ${details}`,
   );
 }
 
@@ -239,19 +515,20 @@ async function replaceTogether(replacements) {
   }
   if (replacementError) throw replacementError;
 
-  for (const file of staged) {
-    await rm(file.backup);
-    file.backupOwned = false;
+  const backupCleanupFailures = await cleanupBackups(staged);
+  if (backupCleanupFailures.length) {
+    throw backupCleanupError(backupCleanupFailures);
   }
 }
 
 export async function syncVersion(directory = process.cwd()) {
-  const lock = await acquireDirectoryLock(directory);
+  const absoluteDirectory = resolve(directory);
+  const lock = await acquireDirectoryLock(absoluteDirectory);
   let operationError;
   try {
-    const packagePath = join(directory, "package.json");
-    const manifestPath = join(directory, "manifest.json");
-    const versionsPath = join(directory, "versions.json");
+    const packagePath = join(absoluteDirectory, "package.json");
+    const manifestPath = join(absoluteDirectory, "manifest.json");
+    const versionsPath = join(absoluteDirectory, "versions.json");
     const [packageJson, manifest, versions] = await Promise.all([
       readJson(packagePath),
       readJson(manifestPath),

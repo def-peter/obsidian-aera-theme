@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -9,11 +10,12 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import test from "node:test";
+import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { bumpMetadata } from "../scripts/version-bump.mjs";
+import { bumpMetadata, syncVersion } from "../scripts/version-bump.mjs";
 
 const manifest = {
   name: "Aera",
@@ -44,13 +46,23 @@ function createFixture(t, packageVersion) {
   return directory;
 }
 
-function runCli(cwd) {
-  return spawnSync(process.execPath, [cliPath], { cwd, encoding: "utf8" });
+function runCli(cwd, options = {}) {
+  return spawnSync(process.execPath, [cliPath], {
+    cwd,
+    encoding: "utf8",
+    ...options,
+  });
 }
 
-function runCliAsync(cwd) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [cliPath], { cwd });
+function startCli(cwd, { env, preloadPath } = {}) {
+  const args = preloadPath
+    ? ["--import", pathToFileURL(preloadPath).href, cliPath]
+    : [cliPath];
+  const child = spawn(process.execPath, args, {
+    cwd,
+    env: { ...process.env, ...env },
+  });
+  const result = new Promise((resolve, reject) => {
     let stdout = "";
     let stderr = "";
 
@@ -67,6 +79,63 @@ function runCliAsync(cwd) {
       resolve({ status, signal, stdout, stderr });
     });
   });
+  return { child, result };
+}
+
+function runCliAsync(cwd) {
+  return startCli(cwd).result;
+}
+
+async function waitForFile(path) {
+  const deadline = Date.now() + 2_000;
+  while (!existsSync(path)) {
+    if (Date.now() >= deadline) throw new Error(`timed out waiting for ${path}`);
+    await delay(5);
+  }
+}
+
+function readLockMetadata(lockPath) {
+  const ownerNames = readdirSync(lockPath).filter((name) => name.endsWith(".json"));
+  assert.equal(ownerNames.length, 1, "lock should have exactly one owner record");
+  return JSON.parse(readFileSync(join(lockPath, ownerNames[0]), "utf8"));
+}
+
+function startPausedCli(directory, name) {
+  const preloadPath = join(directory, `${name}-pause.mjs`);
+  const readyPath = join(directory, `${name}-ready`);
+  const continuePath = join(directory, `${name}-continue`);
+  writeFileSync(
+    preloadPath,
+    `import fs, { existsSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+const realReadFile = fs.promises.readFile;
+let paused = false;
+fs.promises.readFile = async (path, ...args) => {
+  if (!paused && basename(String(path)) === "package.json") {
+    paused = true;
+    writeFileSync(process.env.AERA_LOCK_READY, "ready\\n");
+    while (!existsSync(process.env.AERA_LOCK_CONTINUE)) await delay(5);
+  }
+  return realReadFile(path, ...args);
+};
+syncBuiltinESMExports();
+`,
+  );
+  return {
+    ...startCli(directory, {
+      env: {
+        AERA_LOCK_CONTINUE: continuePath,
+        AERA_LOCK_READY: readyPath,
+      },
+      preloadPath,
+    }),
+    continuePath,
+    preloadPath,
+    readyPath,
+  };
 }
 
 test("bumpMetadata updates the manifest and appends the versions mapping", () => {
@@ -149,6 +218,317 @@ test("version bump CLI reports invalid metadata without modifying files", (t) =>
   assert.doesNotMatch(result.stderr, /\n\s+at /);
   assert.equal(readFileSync(manifestPath, "utf8"), originalManifest);
   assert.equal(readFileSync(versionsPath, "utf8"), originalVersions);
+});
+
+test("syncVersion fixes a relative directory before its first await", async (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const otherDirectory = mkdtempSync(join(tmpdir(), "aera-version-bump-cwd-"));
+  const originalCwd = process.cwd();
+  t.after(() => rmSync(otherDirectory, { recursive: true, force: true }));
+
+  process.chdir(dirname(directory));
+  const synchronization = syncVersion(basename(directory));
+  process.chdir(otherDirectory);
+  try {
+    await synchronization;
+  } finally {
+    process.chdir(originalCwd);
+  }
+
+  assert.equal(
+    JSON.parse(readFileSync(join(directory, "manifest.json"), "utf8")).version,
+    "1.0.0",
+  );
+});
+
+test("version bump CLI takes over a stale lock after its owner is killed", async (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const lockPath = join(directory, ".aera-version-bump.lock");
+  const paused = startPausedCli(directory, "killed-owner");
+  await waitForFile(paused.readyPath);
+  const metadata = readLockMetadata(lockPath);
+
+  paused.child.kill("SIGKILL");
+  await paused.result;
+  rmSync(paused.preloadPath, { force: true });
+  rmSync(paused.readyPath, { force: true });
+
+  const recovered = await Promise.all(
+    Array.from({ length: 12 }, () => runCliAsync(directory)),
+  );
+
+  for (const result of recovered) assert.equal(result.status, 0, result.stderr);
+  assert.equal(metadata.pid, paused.child.pid);
+  assert.equal(typeof metadata.token, "string");
+  assert.equal(typeof metadata.createdAt, "number");
+  assert.equal(existsSync(lockPath), false);
+});
+
+test("a previous lock owner does not delete a replacement lock", async (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const lockPath = join(directory, ".aera-version-bump.lock");
+  const paused = startPausedCli(directory, "replaced-owner");
+  await waitForFile(paused.readyPath);
+  const replacement = {
+    token: "replacement-owner-token",
+    pid: process.pid,
+    createdAt: Date.now(),
+  };
+  rmSync(lockPath, { recursive: true });
+  mkdirSync(lockPath);
+  writeFileSync(
+    join(lockPath, `${replacement.token}.json`),
+    `${JSON.stringify(replacement)}\n`,
+    { flag: "wx" },
+  );
+  writeFileSync(paused.continuePath, "continue\n");
+
+  const result = await paused.result;
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(readLockMetadata(lockPath), replacement);
+});
+
+test("releasing an owned lock never vacates the fixed lock path early", async (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const lockPath = join(directory, ".aera-version-bump.lock");
+  const preloadPath = join(directory, "pause-lock-release.mjs");
+  const readyPath = join(directory, "release-ready");
+  const continuePath = join(directory, "release-continue");
+  writeFileSync(
+    preloadPath,
+    `import fs, { existsSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename, dirname } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+const realRm = fs.promises.rm;
+let paused = false;
+fs.promises.rm = async (path, options) => {
+  const name = basename(String(path));
+  const parent = basename(dirname(String(path)));
+  const releasingLock = name.endsWith(".moved") ||
+    (parent === ".aera-version-bump.lock" && name.endsWith(".json"));
+  if (!paused && releasingLock) {
+    paused = true;
+    writeFileSync(process.env.AERA_RELEASE_READY, "ready\\n");
+    while (!existsSync(process.env.AERA_RELEASE_CONTINUE)) await delay(5);
+  }
+  return realRm(path, options);
+};
+syncBuiltinESMExports();
+`,
+  );
+  const running = startCli(directory, {
+    env: {
+      AERA_RELEASE_CONTINUE: continuePath,
+      AERA_RELEASE_READY: readyPath,
+    },
+    preloadPath,
+  });
+  await waitForFile(readyPath);
+
+  const fixedLockStillExists = existsSync(lockPath);
+  writeFileSync(continuePath, "continue\n");
+  const result = await running.result;
+
+  assert.equal(fixedLockStillExists, true);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(existsSync(lockPath), false);
+});
+
+test("a slow owner publication cannot bypass a contender's recovery gate", async (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const preloadPath = join(directory, "slow-owner-publication.mjs");
+  const slowReadyPath = join(directory, "slow-owner-ready");
+  const slowContinuePath = join(directory, "slow-owner-continue");
+  const slowEnteredPath = join(directory, "slow-owner-entered");
+  writeFileSync(
+    preloadPath,
+    `import fs, { existsSync, writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename, dirname } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+const realOpen = fs.promises.open;
+const realReadFile = fs.promises.readFile;
+let ownerWritePaused = false;
+fs.promises.open = async (path, ...args) => {
+  const handle = await realOpen(path, ...args);
+  const name = basename(String(path));
+  const parent = basename(dirname(String(path)));
+  const ownerRecord =
+    (parent === ".aera-version-bump.lock" && name.endsWith(".json")) ||
+    name.startsWith(".aera-version-bump-owner-");
+  if (!ownerWritePaused && ownerRecord) {
+    ownerWritePaused = true;
+    const realWriteFile = handle.writeFile.bind(handle);
+    handle.writeFile = async (...writeArgs) => {
+      writeFileSync(process.env.AERA_SLOW_READY, "ready\\n");
+      while (!existsSync(process.env.AERA_SLOW_CONTINUE)) await delay(5);
+      return realWriteFile(...writeArgs);
+    };
+  }
+  return handle;
+};
+fs.promises.readFile = async (path, ...args) => {
+  if (basename(String(path)) === "package.json") {
+    writeFileSync(process.env.AERA_SLOW_ENTERED, "entered\\n");
+  }
+  return realReadFile(path, ...args);
+};
+syncBuiltinESMExports();
+`,
+  );
+  const slowOwner = startCli(directory, {
+    env: {
+      AERA_SLOW_CONTINUE: slowContinuePath,
+      AERA_SLOW_ENTERED: slowEnteredPath,
+      AERA_SLOW_READY: slowReadyPath,
+    },
+    preloadPath,
+  });
+  await waitForFile(slowReadyPath);
+  await delay(1_200);
+
+  const contender = startPausedCli(directory, "publication-contender");
+  await waitForFile(contender.readyPath);
+  writeFileSync(slowContinuePath, "continue\n");
+  await delay(200);
+  const slowOwnerEnteredWhileContenderHeld = existsSync(slowEnteredPath);
+  writeFileSync(contender.continuePath, "continue\n");
+
+  const contenderResult = await contender.result;
+  await waitForFile(slowEnteredPath);
+  const slowOwnerResult = await slowOwner.result;
+
+  assert.equal(slowOwnerEnteredWhileContenderHeld, false);
+  assert.equal(contenderResult.status, 0, contenderResult.stderr);
+  assert.equal(slowOwnerResult.status, 0, slowOwnerResult.stderr);
+  assert.equal(
+    readdirSync(directory).some((name) =>
+      name.startsWith(".aera-version-bump-owner-"),
+    ),
+    false,
+  );
+});
+
+for (const failurePoint of ["write", "close"]) {
+  test(`version bump CLI reports retained staged temporary after ${failurePoint} failure`, (t) => {
+    const directory = createFixture(t, "1.0.0");
+    const preloadPath = join(directory, `fail-stage-${failurePoint}.mjs`);
+    writeFileSync(
+      preloadPath,
+      `import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename } from "node:path";
+
+const realOpen = fs.promises.open;
+const realRm = fs.promises.rm;
+fs.promises.open = async (path, ...args) => {
+  const handle = await realOpen(path, ...args);
+  const name = basename(String(path));
+  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".tmp")) {
+    if (process.env.AERA_STAGE_FAILURE === "write") {
+      handle.writeFile = async () => {
+        throw new Error("injected temporary write failure");
+      };
+      handle.close = async () => {
+        throw new Error("injected temporary cleanup close failure");
+      };
+    } else {
+      const realClose = handle.close.bind(handle);
+      let closeFailed = false;
+      handle.close = async () => {
+        if (!closeFailed) {
+          closeFailed = true;
+          throw new Error("injected temporary close failure");
+        }
+        return realClose();
+      };
+    }
+  }
+  return handle;
+};
+fs.promises.rm = async (path, options) => {
+  const name = basename(String(path));
+  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".tmp")) {
+    throw new Error("injected staged temporary removal failure");
+  }
+  return realRm(path, options);
+};
+syncBuiltinESMExports();
+`,
+    );
+
+    const result = spawnSync(
+      process.execPath,
+      ["--import", pathToFileURL(preloadPath).href, cliPath],
+      {
+        cwd: directory,
+        encoding: "utf8",
+        env: { ...process.env, AERA_STAGE_FAILURE: failurePoint },
+      },
+    );
+    const temporaryName = readdirSync(directory).find((name) =>
+      /^\.manifest\.json\.aera-.+\.tmp$/.test(name),
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, new RegExp(`temporary ${failurePoint} failure`));
+    if (failurePoint === "write") {
+      assert.match(result.stderr, /temporary cleanup close failure/);
+    }
+    assert.match(result.stderr, /staged temporary removal failure/);
+    assert.ok(temporaryName, "failed cleanup should retain the staged temporary");
+    assert.match(result.stderr, new RegExp(temporaryName.replaceAll(".", "\\.")));
+  });
+}
+
+test("version bump CLI reports every retained backup after cleanup failures", (t) => {
+  const directory = createFixture(t, "1.0.0");
+  const preloadPath = join(directory, "fail-backup-cleanup.mjs");
+  writeFileSync(
+    preloadPath,
+    `import fs from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename } from "node:path";
+
+const realRm = fs.promises.rm;
+fs.promises.rm = async (path, options) => {
+  const name = basename(String(path));
+  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".bak")) {
+    throw new Error("injected manifest backup cleanup failure");
+  }
+  if (name.startsWith(".versions.json.aera-") && name.endsWith(".bak")) {
+    throw new Error("injected versions backup cleanup failure");
+  }
+  return realRm(path, options);
+};
+syncBuiltinESMExports();
+`,
+  );
+
+  const result = spawnSync(
+    process.execPath,
+    ["--import", pathToFileURL(preloadPath).href, cliPath],
+    { cwd: directory, encoding: "utf8" },
+  );
+  const backupNames = readdirSync(directory)
+    .filter((name) => /\.(?:manifest|versions)\.json\.aera-.+\.bak$/.test(name))
+    .sort();
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /injected manifest backup cleanup failure/);
+  assert.match(result.stderr, /injected versions backup cleanup failure/);
+  assert.equal(backupNames.length, 2);
+  for (const backupName of backupNames) {
+    assert.match(result.stderr, new RegExp(backupName.replaceAll(".", "\\.")));
+  }
+  assert.equal(
+    JSON.parse(readFileSync(join(directory, "manifest.json"), "utf8")).version,
+    "1.0.0",
+  );
 });
 
 test("version bump CLI reports rollback failures and preserves their backups", (t) => {
