@@ -100,6 +100,13 @@ function readLockMetadata(lockPath) {
   return JSON.parse(readFileSync(join(lockPath, ownerNames[0]), "utf8"));
 }
 
+function findNestedFile(directory, pattern) {
+  const relativePath = readdirSync(directory, { recursive: true }).find((path) =>
+    pattern.test(basename(String(path))),
+  );
+  return relativePath ? join(directory, String(relativePath)) : undefined;
+}
+
 function startPausedCli(directory, name) {
   const preloadPath = join(directory, `${name}-pause.mjs`);
   const readyPath = join(directory, `${name}-ready`);
@@ -108,7 +115,7 @@ function startPausedCli(directory, name) {
     preloadPath,
     `import fs, { existsSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
-import { basename } from "node:path";
+import { basename, dirname } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 const realReadFile = fs.promises.readFile;
@@ -264,7 +271,7 @@ test("version bump CLI takes over a stale lock after its owner is killed", async
   assert.equal(existsSync(lockPath), false);
 });
 
-test("a previous lock owner does not delete a replacement lock", async (t) => {
+test("a previous lock owner fails without deleting a replacement lock", async (t) => {
   const directory = createFixture(t, "1.0.0");
   const lockPath = join(directory, ".aera-version-bump.lock");
   const paused = startPausedCli(directory, "replaced-owner");
@@ -285,7 +292,8 @@ test("a previous lock owner does not delete a replacement lock", async (t) => {
 
   const result = await paused.result;
 
-  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /ENOENT|workspace/i);
   assert.deepEqual(readLockMetadata(lockPath), replacement);
 });
 
@@ -413,22 +421,88 @@ syncBuiltinESMExports();
   );
 });
 
+for (const installBoundary of [1, 2]) {
+  test(`version bump CLI converges after SIGKILL at install replace ${installBoundary}`, async (t) => {
+    const directory = createFixture(t, "1.0.0");
+    const preloadPath = join(directory, `kill-install-${installBoundary}.mjs`);
+    const readyPath = join(directory, `kill-install-${installBoundary}-ready`);
+    writeFileSync(
+      preloadPath,
+      `import fs, { writeFileSync } from "node:fs";
+import { syncBuiltinESMExports } from "node:module";
+import { basename, dirname } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
+
+const realRename = fs.promises.rename;
+let installRenames = 0;
+fs.promises.rename = async (source, destination) => {
+  const sourceName = basename(String(source));
+  const destinationName = basename(String(destination));
+  const installRename = sourceName.endsWith(".tmp") &&
+    (destinationName === "manifest.json" || destinationName === "versions.json");
+  const result = await realRename(source, destination);
+  if (installRename) {
+    installRenames += 1;
+    if (installRenames === Number(process.env.AERA_KILL_INSTALL)) {
+      writeFileSync(process.env.AERA_KILL_READY, "ready\\n");
+      while (true) await delay(1_000);
+    }
+  }
+  return result;
+};
+syncBuiltinESMExports();
+`,
+    );
+    const interrupted = startCli(directory, {
+      env: {
+        AERA_KILL_READY: readyPath,
+        AERA_KILL_INSTALL: String(installBoundary),
+      },
+      preloadPath,
+    });
+    await waitForFile(readyPath);
+    interrupted.child.kill("SIGKILL");
+    await interrupted.result;
+    rmSync(preloadPath, { force: true });
+    rmSync(readyPath, { force: true });
+
+    const recovered = await Promise.all(
+      Array.from({ length: 8 }, () => runCliAsync(directory)),
+    );
+
+    for (const result of recovered) assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+      readFileSync(join(directory, "manifest.json"), "utf8"),
+      `${JSON.stringify({ ...manifest, version: "1.0.0" }, null, 2)}\n`,
+    );
+    assert.equal(
+      readFileSync(join(directory, "versions.json"), "utf8"),
+      `${JSON.stringify({ ...versions, "1.0.0": "1.12.7" }, null, 2)}\n`,
+    );
+    assert.deepEqual(readdirSync(directory).sort(), [
+      "manifest.json",
+      "package.json",
+      "versions.json",
+    ]);
+  });
+}
+
 for (const failurePoint of ["write", "close"]) {
-  test(`version bump CLI reports retained staged temporary after ${failurePoint} failure`, (t) => {
+  test(`version bump CLI reports retained install temporary after ${failurePoint} failure`, (t) => {
     const directory = createFixture(t, "1.0.0");
     const preloadPath = join(directory, `fail-stage-${failurePoint}.mjs`);
     writeFileSync(
       preloadPath,
       `import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
-import { basename } from "node:path";
+import { basename, dirname } from "node:path";
 
 const realOpen = fs.promises.open;
 const realRm = fs.promises.rm;
 fs.promises.open = async (path, ...args) => {
   const handle = await realOpen(path, ...args);
   const name = basename(String(path));
-  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".tmp")) {
+  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".install.tmp")) {
     if (process.env.AERA_STAGE_FAILURE === "write") {
       handle.writeFile = async () => {
         throw new Error("injected temporary write failure");
@@ -452,7 +526,8 @@ fs.promises.open = async (path, ...args) => {
 };
 fs.promises.rm = async (path, options) => {
   const name = basename(String(path));
-  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".tmp")) {
+  const parent = basename(dirname(String(path)));
+  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".install.tmp")) {
     throw new Error("injected staged temporary removal failure");
   }
   return realRm(path, options);
@@ -470,8 +545,9 @@ syncBuiltinESMExports();
         env: { ...process.env, AERA_STAGE_FAILURE: failurePoint },
       },
     );
-    const temporaryName = readdirSync(directory).find((name) =>
-      /^\.manifest\.json\.aera-.+\.tmp$/.test(name),
+    const temporaryPath = findNestedFile(
+      directory,
+      /^\.manifest\.json\.aera-.+\.install\.tmp$/,
     );
 
     assert.equal(result.status, 1);
@@ -480,28 +556,40 @@ syncBuiltinESMExports();
       assert.match(result.stderr, /temporary cleanup close failure/);
     }
     assert.match(result.stderr, /staged temporary removal failure/);
-    assert.ok(temporaryName, "failed cleanup should retain the staged temporary");
-    assert.match(result.stderr, new RegExp(temporaryName.replaceAll(".", "\\.")));
+    assert.match(result.stderr, /workspace.*retained|ENOTEMPTY/i);
+    assert.ok(temporaryPath, "failed cleanup should retain the install temporary");
+    assert.match(
+      result.stderr,
+      new RegExp(basename(temporaryPath).replaceAll(".", "\\.")),
+    );
   });
 }
 
-test("version bump CLI reports every retained backup after cleanup failures", (t) => {
+test("owner release does not erase a reported retained temporary", (t) => {
   const directory = createFixture(t, "1.0.0");
-  const preloadPath = join(directory, "fail-backup-cleanup.mjs");
+  const preloadPath = join(directory, "retain-failed-temporary.mjs");
   writeFileSync(
     preloadPath,
     `import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { basename } from "node:path";
 
+const realOpen = fs.promises.open;
 const realRm = fs.promises.rm;
+fs.promises.open = async (path, ...args) => {
+  const handle = await realOpen(path, ...args);
+  const name = basename(String(path));
+  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".install.tmp")) {
+    handle.writeFile = async () => {
+      throw new Error("injected retained temporary write failure");
+    };
+  }
+  return handle;
+};
 fs.promises.rm = async (path, options) => {
   const name = basename(String(path));
-  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".bak")) {
-    throw new Error("injected manifest backup cleanup failure");
-  }
-  if (name.startsWith(".versions.json.aera-") && name.endsWith(".bak")) {
-    throw new Error("injected versions backup cleanup failure");
+  if (name.startsWith(".manifest.json.aera-") && name.endsWith(".install.tmp")) {
+    throw new Error("injected retained temporary removal failure");
   }
   return realRm(path, options);
 };
@@ -514,55 +602,48 @@ syncBuiltinESMExports();
     ["--import", pathToFileURL(preloadPath).href, cliPath],
     { cwd: directory, encoding: "utf8" },
   );
-  const backupNames = readdirSync(directory)
-    .filter((name) => /\.(?:manifest|versions)\.json\.aera-.+\.bak$/.test(name))
-    .sort();
+  const temporaryPath = findNestedFile(
+    directory,
+    /^\.manifest\.json\.aera-.+\.install\.tmp$/,
+  );
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /injected manifest backup cleanup failure/);
-  assert.match(result.stderr, /injected versions backup cleanup failure/);
-  assert.equal(backupNames.length, 2);
-  for (const backupName of backupNames) {
-    assert.match(result.stderr, new RegExp(backupName.replaceAll(".", "\\.")));
-  }
-  assert.equal(
-    JSON.parse(readFileSync(join(directory, "manifest.json"), "utf8")).version,
-    "1.0.0",
-  );
+  assert.match(result.stderr, /temporary retained at/);
+  assert.match(result.stderr, /workspace.*retained|ENOTEMPTY/i);
+  assert.ok(temporaryPath, "the reported retained temporary must still exist");
 });
 
-test("version bump CLI reports rollback failures and preserves their backups", (t) => {
+test("version bump CLI aggregates atomic install rollback and cleanup failures", (t) => {
   const directory = createFixture(t, "1.0.0");
   const preloadPath = join(directory, "fail-renames.mjs");
   writeFileSync(
     preloadPath,
     `import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
-import { basename } from "node:path";
+import { basename, dirname } from "node:path";
 
 const realRename = fs.promises.rename;
 const realRm = fs.promises.rm;
 let installFailed = false;
 let rollbackFailed = false;
-let cleanupFailed = false;
 fs.promises.rename = async (source, destination) => {
   const sourceName = basename(String(source));
   const destinationName = basename(String(destination));
-  if (!installFailed && sourceName.startsWith(".versions.json.aera-") && sourceName.endsWith(".tmp")) {
+  if (!installFailed && sourceName.startsWith(".manifest.json.aera-") && sourceName.endsWith(".install.tmp")) {
     installFailed = true;
-    throw new Error("injected versions install failure");
+    throw new Error("injected manifest install failure");
   }
-  if (!rollbackFailed && sourceName.startsWith(".manifest.json.aera-") && sourceName.endsWith(".bak") && destinationName === "manifest.json") {
+  if (!rollbackFailed && sourceName.startsWith(".versions.json.aera-") && sourceName.endsWith(".rollback.tmp") && destinationName === "versions.json") {
     rollbackFailed = true;
-    throw new Error("injected manifest rollback failure");
+    throw new Error("injected versions rollback failure");
   }
   return realRename(source, destination);
 };
 fs.promises.rm = async (path, options) => {
   const name = basename(String(path));
-  if (!cleanupFailed && name.startsWith(".versions.json.aera-") && name.endsWith(".tmp")) {
-    cleanupFailed = true;
-    throw new Error("injected temporary cleanup failure");
+  const parent = basename(dirname(String(path)));
+  if (name.startsWith(".versions.json.aera-") && name.endsWith(".rollback.tmp")) {
+    throw new Error("injected rollback temporary cleanup failure");
   }
   return realRm(path, options);
 };
@@ -575,22 +656,23 @@ syncBuiltinESMExports();
     ["--import", pathToFileURL(preloadPath).href, cliPath],
     { cwd: directory, encoding: "utf8" },
   );
-  const backupName = readdirSync(directory).find((name) =>
-    /^\.manifest\.json\.aera-.+\.bak$/.test(name),
-  );
-  const temporaryName = readdirSync(directory).find((name) =>
-    /^\.versions\.json\.aera-.+\.tmp$/.test(name),
+  const temporaryPath = findNestedFile(
+    directory,
+    /^\.versions\.json\.aera-.+\.rollback\.tmp$/,
   );
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /injected versions install failure/);
-  assert.match(result.stderr, /rollback.*injected manifest rollback failure/i);
-  assert.match(result.stderr, /cleanup.*injected temporary cleanup failure/i);
-  assert.ok(backupName, "failed rollback should preserve the manifest backup");
-  assert.ok(temporaryName, "failed cleanup should preserve the versions temporary file");
-  assert.match(result.stderr, new RegExp(backupName.replaceAll(".", "\\.")));
-  assert.match(result.stderr, new RegExp(temporaryName.replaceAll(".", "\\.")));
-  assert.equal(existsSync(join(directory, "manifest.json")), false);
+  assert.match(result.stderr, /injected manifest install failure/);
+  assert.match(result.stderr, /rollback.*injected versions rollback failure/i);
+  assert.match(result.stderr, /rollback temporary cleanup failure/i);
+  assert.match(result.stderr, /workspace.*retained|ENOTEMPTY/i);
+  assert.ok(temporaryPath, "failed cleanup should preserve the rollback temporary");
+  assert.match(
+    result.stderr,
+    new RegExp(basename(temporaryPath).replaceAll(".", "\\.")),
+  );
+  assert.equal(existsSync(join(directory, "manifest.json")), true);
+  assert.equal(existsSync(join(directory, "versions.json")), true);
 });
 
 test("version bump CLI serializes concurrent calls in the same directory", async (t) => {

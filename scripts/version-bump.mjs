@@ -67,14 +67,13 @@ async function readJson(path) {
   }
 
   try {
-    return JSON.parse(contents);
+    return { contents, value: JSON.parse(contents) };
   } catch (error) {
     throw new Error(`could not parse ${path}: ${error.message}`);
   }
 }
 
-async function stageFile(path, contents, id) {
-  const temporaryPath = join(dirname(path), `.${basename(path)}.aera-${id}.tmp`);
+async function stageFile(path, contents, temporaryPath) {
   let temporaryFile;
   let ownsTemporaryPath = false;
 
@@ -173,18 +172,24 @@ async function inspectLock(lockPath) {
         removable: true,
       };
     }
-    if (
-      entries.length === 1 &&
-      entries[0].isFile() &&
-      entries[0].name.endsWith(".json")
-    ) {
-      const ownerPath = join(lockPath, entries[0].name);
+    const ownerEntries = entries.filter(
+      (entry) => entry.isFile() && entry.name.endsWith(".json"),
+    );
+    if (ownerEntries.length === 1) {
+      const ownerPath = join(lockPath, ownerEntries[0].name);
       const owner = await inspectLockOwner(ownerPath);
+      const workspacePath = owner?.token ? join(lockPath, owner.token) : null;
+      const validEntries = entries.every(
+        (entry) =>
+          entry.name === ownerEntries[0].name ||
+          (workspacePath && entry.isDirectory() && entry.name === owner.token),
+      );
       return {
         mtimeMs: owner?.mtimeMs ?? metadata.mtimeMs,
         owner,
         ownerPath,
-        removable: true,
+        removable: validEntries,
+        workspacePath,
       };
     }
     return {
@@ -232,10 +237,19 @@ async function removeLockDirectory(lockPath) {
   }
 }
 
-async function releaseDirectoryLock(lockPath, ownerPath, token) {
+async function releaseDirectoryLock(lockPath, ownerPath, workspacePath, token) {
   const owner = await inspectLockOwner(ownerPath);
   if (owner?.token !== token) return;
 
+  try {
+    await rmdir(workspacePath);
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw new Error(
+        `version workspace retained at ${workspacePath}: ${error.message}`,
+      );
+    }
+  }
   try {
     await rm(ownerPath);
   } catch (error) {
@@ -249,6 +263,9 @@ async function removeStaleLock(lockPath, observed) {
   if (observed.ownerPath) {
     const currentOwner = await inspectLockOwner(observed.ownerPath);
     if (currentOwner?.identity !== observed.owner?.identity) return false;
+    if (observed.workspacePath) {
+      await rm(observed.workspacePath, { recursive: true, force: true });
+    }
     try {
       await rm(observed.ownerPath);
     } catch (error) {
@@ -320,9 +337,20 @@ async function createDirectoryLock(lockPath) {
     throw retryError;
   }
 
+  const workspacePath = join(lockPath, token);
+  try {
+    await mkdir(workspacePath);
+  } catch (error) {
+    await rm(ownerPath, { force: true }).catch(() => {});
+    await removeLockDirectory(lockPath).catch(() => {});
+    throw error;
+  }
+
   return {
+    token,
+    workspacePath,
     async release() {
-      await releaseDirectoryLock(lockPath, ownerPath, token);
+      await releaseDirectoryLock(lockPath, ownerPath, workspacePath, token);
     },
   };
 }
@@ -374,11 +402,10 @@ function stageCleanupError(originalError, path, failures, retained) {
 
 function rollbackError(originalError, failures) {
   const details = failures
-    .map(({ action, error, backup, destination }) => {
-      const paths = backup ? `${backup} -> ${destination}` : destination;
-      const retained = backup ? `; backup retained at ${backup}` : "";
-      return `${action} ${paths}: ${errorMessage(error)}${retained}`;
-    })
+    .map(
+      ({ action, error, path }) =>
+        `${action} ${path}: ${errorMessage(error)}`,
+    )
     .join("; ");
   return new AggregateError(
     [originalError, ...failures.map(({ error }) => error)],
@@ -413,48 +440,23 @@ function cleanupError(originalError, failures) {
   );
 }
 
-async function cleanupBackups(staged) {
-  const results = await Promise.all(
-    staged
-      .filter((file) => file.backupOwned)
-      .map(async (file) => {
-        try {
-          await rm(file.backup);
-          file.backupOwned = false;
-          return null;
-        } catch (error) {
-          return { backup: file.backup, error };
-        }
-      }),
-  );
-  return results.filter(Boolean);
-}
-
-function backupCleanupError(failures) {
-  const details = failures
-    .map(
-      ({ backup, error }) =>
-        `${backup}: ${errorMessage(error)}; backup retained at ${backup}`,
-    )
-    .join("; ");
-  return new AggregateError(
-    failures.map(({ error }) => error),
-    `backup cleanup failed: ${details}`,
-  );
-}
-
-async function replaceTogether(replacements) {
+async function replaceTogether(replacements, workspacePath) {
   const transactionId = randomUUID();
   const staged = [];
 
   try {
-    for (const { path, contents } of replacements) {
+    for (const replacement of replacements) {
+      const temporaryPath = join(
+        workspacePath,
+        `.${basename(replacement.path)}.aera-${transactionId}.install.tmp`,
+      );
       staged.push({
-        destination: path,
-        backup: join(dirname(path), `.${basename(path)}.aera-${transactionId}.bak`),
-        temporary: await stageFile(path, contents, transactionId),
-        backupOwned: false,
-        replacementInstalled: false,
+        ...replacement,
+        temporary: await stageFile(
+          replacement.path,
+          replacement.contents,
+          temporaryPath,
+        ),
       });
     }
   } catch (error) {
@@ -463,61 +465,54 @@ async function replaceTogether(replacements) {
     throw error;
   }
 
-  let replacementError;
+  const installed = [];
   try {
     for (const file of staged) {
-      await rename(file.destination, file.backup);
-      file.backupOwned = true;
-    }
-    for (const file of staged) {
-      await rename(file.temporary.path, file.destination);
+      await rename(file.temporary.path, file.path);
       file.temporary.release();
-      file.replacementInstalled = true;
+      installed.push(file);
     }
   } catch (error) {
     const rollbackFailures = [];
-    for (const file of staged.toReversed()) {
-      if (file.replacementInstalled) {
-        try {
-          await rm(file.destination, { force: true });
-          file.replacementInstalled = false;
-        } catch (rollbackFailure) {
-          rollbackFailures.push({
-            action: "remove replacement",
-            destination: file.destination,
-            error: rollbackFailure,
-          });
-        }
-      }
-      if (file.backupOwned) {
-        try {
-          await rename(file.backup, file.destination);
-          file.backupOwned = false;
-          file.replacementInstalled = false;
-        } catch (rollbackFailure) {
-          rollbackFailures.push({
-            action: "restore backup",
-            backup: file.backup,
-            destination: file.destination,
-            error: rollbackFailure,
-          });
-        }
+    const rollbackTemporaries = [];
+    for (const file of installed.toReversed()) {
+      const rollbackPath = join(
+        workspacePath,
+        `.${basename(file.path)}.aera-${transactionId}.rollback.tmp`,
+      );
+      try {
+        const rollbackTemporary = await stageFile(
+          file.path,
+          file.rollbackContents,
+          rollbackPath,
+        );
+        rollbackTemporaries.push({ temporary: rollbackTemporary });
+        await rename(rollbackTemporary.path, file.path);
+        rollbackTemporary.release();
+      } catch (rollbackFailure) {
+        rollbackFailures.push({
+          action: "restore original",
+          error: rollbackFailure,
+          path: rollbackPath,
+        });
       }
     }
-    replacementError = rollbackFailures.length
+    const replacementError = rollbackFailures.length
       ? rollbackError(error, rollbackFailures)
       : error;
+    const cleanupFailures = await cleanupStagedFiles([
+      ...staged,
+      ...rollbackTemporaries,
+    ]);
+    if (cleanupFailures.length) {
+      throw cleanupError(replacementError, cleanupFailures);
+    }
+    throw replacementError;
   }
 
   const cleanupFailures = await cleanupStagedFiles(staged);
   if (cleanupFailures.length) {
-    throw cleanupError(replacementError, cleanupFailures);
-  }
-  if (replacementError) throw replacementError;
-
-  const backupCleanupFailures = await cleanupBackups(staged);
-  if (backupCleanupFailures.length) {
-    throw backupCleanupError(backupCleanupFailures);
+    throw cleanupError(new Error("install completed"), cleanupFailures);
   }
 }
 
@@ -529,17 +524,33 @@ export async function syncVersion(directory = process.cwd()) {
     const packagePath = join(absoluteDirectory, "package.json");
     const manifestPath = join(absoluteDirectory, "manifest.json");
     const versionsPath = join(absoluteDirectory, "versions.json");
-    const [packageJson, manifest, versions] = await Promise.all([
-      readJson(packagePath),
-      readJson(manifestPath),
-      readJson(versionsPath),
-    ]);
-    const next = bumpMetadata(manifest, versions, packageJson?.version);
+    const [packageDocument, manifestDocument, versionsDocument] =
+      await Promise.all([
+        readJson(packagePath),
+        readJson(manifestPath),
+        readJson(versionsPath),
+      ]);
+    const next = bumpMetadata(
+      manifestDocument.value,
+      versionsDocument.value,
+      packageDocument.value?.version,
+    );
 
-    await replaceTogether([
-      { path: manifestPath, contents: jsonContents(next.manifest) },
-      { path: versionsPath, contents: jsonContents(next.versions) },
-    ]);
+    await replaceTogether(
+      [
+        {
+          path: versionsPath,
+          contents: jsonContents(next.versions),
+          rollbackContents: versionsDocument.contents,
+        },
+        {
+          path: manifestPath,
+          contents: jsonContents(next.manifest),
+          rollbackContents: manifestDocument.contents,
+        },
+      ],
+      lock.workspacePath,
+    );
   } catch (error) {
     operationError = error;
     throw error;
