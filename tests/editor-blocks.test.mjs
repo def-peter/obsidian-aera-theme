@@ -207,6 +207,18 @@ test("styles reading code blocks with direct Monokai declarations", () => {
   );
 });
 
+test("keeps reading code lines unwrapped inside the scrollable block", () => {
+  assert.deepEqual(
+    Object.fromEntries(
+      declarationsFor(
+        css,
+        ":where(.markdown-rendered pre:not(.frontmatter)) code[class*=language-]",
+      ),
+    ),
+    { "white-space": "pre" },
+  );
+});
+
 test("styles CM6 code block lines with direct Monokai declarations", () => {
   assert.deepEqual(
     directDeclarations(

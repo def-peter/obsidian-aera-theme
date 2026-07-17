@@ -12,6 +12,7 @@ const allowedThemeSelectors = new Set([
   ".callout-fold",
   ".callout.is-collapsed .callout-icon",
   ":where(.markdown-rendered pre:not(.frontmatter))",
+  ":where(.markdown-rendered pre:not(.frontmatter)) code[class*=language-]",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
   ".markdown-rendered blockquote",
   ".markdown-rendered blockquote:not(blockquote blockquote)::before",

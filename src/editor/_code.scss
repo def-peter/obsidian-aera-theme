@@ -29,6 +29,10 @@ body {
   @include monokai-block;
 }
 
+:where(.markdown-rendered pre:not(.frontmatter)) code[class*="language-"] {
+  white-space: pre;
+}
+
 :where(.markdown-source-view.mod-cm6 .HyperMD-codeblock) {
   @include monokai-block;
 }
