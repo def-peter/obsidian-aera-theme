@@ -24,6 +24,7 @@ const allowedSelectors = new Set([
   ":where(.markdown-rendered pre:not(.frontmatter))",
   ":where(.markdown-rendered pre:not(.frontmatter)) code[class*=language-]",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
+  ".markdown-source-view.mod-cm6 :where(.HyperMD-codeblock)",
   ".markdown-rendered blockquote",
   ".markdown-rendered blockquote:not(blockquote blockquote)::before",
   ".markdown-rendered blockquote:not(blockquote blockquote)::after",
@@ -123,7 +124,7 @@ test("uses a borderless semantic callout surface", () => {
     "background-color":
       "rgba(var(--callout-color), var(--aera-callout-background-opacity))",
     color:
-      "color-mix(in srgb, rgb(var(--callout-color)) 72%, var(--text-normal))",
+      "color-mix(in srgb, rgb(var(--callout-color)) var(--aera-callout-body-semantic-weight), var(--text-normal))",
     border: "0",
   });
 });
@@ -136,7 +137,7 @@ test("keeps callout text clear of the watermark", () => {
   assert.deepEqual(Object.fromEntries(title), {
     "padding-inline-end": "var(--size-4-12)",
     color:
-      "color-mix(in srgb, rgb(var(--callout-color)) 84%, var(--text-normal))",
+      "color-mix(in srgb, rgb(var(--callout-color)) var(--aera-callout-title-semantic-weight), var(--text-normal))",
   });
   assert.deepEqual(Object.fromEntries(content), {
     "padding-inline-end": "var(--size-4-12)",

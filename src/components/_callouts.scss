@@ -17,7 +17,7 @@ body {
   );
   color: color-mix(
     in srgb,
-    rgb(var(--callout-color)) 72%,
+    rgb(var(--callout-color)) var(--aera-callout-body-semantic-weight),
     var(--text-normal)
   );
   border: 0;
@@ -27,7 +27,7 @@ body {
   padding-inline-end: var(--size-4-12);
   color: color-mix(
     in srgb,
-    rgb(var(--callout-color)) 84%,
+    rgb(var(--callout-color)) var(--aera-callout-title-semantic-weight),
     var(--text-normal)
   );
 }

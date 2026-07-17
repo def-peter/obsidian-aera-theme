@@ -14,6 +14,7 @@ const allowedThemeSelectors = new Set([
   ":where(.markdown-rendered pre:not(.frontmatter))",
   ":where(.markdown-rendered pre:not(.frontmatter)) code[class*=language-]",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
+  ".markdown-source-view.mod-cm6 :where(.HyperMD-codeblock)",
   ".markdown-rendered blockquote",
   ".markdown-rendered blockquote:not(blockquote blockquote)::before",
   ".markdown-rendered blockquote:not(blockquote blockquote)::after",

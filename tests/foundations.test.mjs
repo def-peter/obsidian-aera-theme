@@ -8,6 +8,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  CALLOUT_CONTRAST_PAIRS,
   CORE_CONTRAST_PAIRS,
   contrastRatio,
   relativeLuminance,
@@ -73,6 +74,8 @@ const expectedColors = {
     "--aera-inline-code-background": "#d9dee5",
     "--aera-inline-code-color": "#566273",
     "--aera-callout-background-opacity": "0.08",
+    "--aera-callout-title-semantic-weight": "52%",
+    "--aera-callout-body-semantic-weight": "50%",
     "--aera-quote-background": "#f1f3f6",
     "--aera-quote-fold": "#d9dee5",
   },
@@ -105,10 +108,78 @@ const expectedColors = {
     "--aera-inline-code-background": "#2a2f36",
     "--aera-inline-code-color": "#b8c0cc",
     "--aera-callout-background-opacity": "0.12",
+    "--aera-callout-title-semantic-weight": "84%",
+    "--aera-callout-body-semantic-weight": "72%",
     "--aera-quote-background": "#22262c",
     "--aera-quote-fold": "#3a414a",
   },
 };
+
+const calloutTypeColors = {
+  ".theme-light": {
+    note: [8, 109, 221],
+    warning: [236, 117, 0],
+    error: [233, 49, 71],
+    example: [120, 82, 238],
+    quote: [158, 158, 158],
+    tip: [0, 191, 188],
+  },
+  ".theme-dark": {
+    note: [2, 122, 255],
+    warning: [233, 151, 63],
+    error: [251, 70, 76],
+    example: [168, 130, 255],
+    quote: [158, 158, 158],
+    tip: [83, 223, 221],
+  },
+};
+
+function hexChannels(hex) {
+  return [1, 3, 5].map((offset) =>
+    Number.parseInt(hex.slice(offset, offset + 2), 16),
+  );
+}
+
+function mixChannels(foreground, background, foregroundWeight) {
+  return foreground.map(
+    (channel, index) =>
+      channel * foregroundWeight + background[index] * (1 - foregroundWeight),
+  );
+}
+
+function channelLuminance(channel) {
+  const srgb = channel / 255;
+  return srgb <= 0.04045
+    ? srgb / 12.92
+    : ((srgb + 0.055) / 1.055) ** 2.4;
+}
+
+function channelContrastRatio(foreground, background) {
+  const luminance = (channels) => {
+    const [red, green, blue] = channels.map(channelLuminance);
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  };
+  const foregroundLuminance = luminance(foreground);
+  const backgroundLuminance = luminance(background);
+
+  return (
+    (Math.max(foregroundLuminance, backgroundLuminance) + 0.05) /
+    (Math.min(foregroundLuminance, backgroundLuminance) + 0.05)
+  );
+}
+
+function calloutSemanticWeight(colorDeclaration, themeDeclarations) {
+  const literal = colorDeclaration.match(
+    /rgb\(var\(--callout-color\)\) ([0-9.]+)%/,
+  );
+  if (literal) return Number(literal[1]) / 100;
+
+  const variable = colorDeclaration.match(
+    /rgb\(var\(--callout-color\)\) var\((--[^)]+)\)/,
+  );
+  assert.ok(variable, colorDeclaration);
+  return Number.parseFloat(themeDeclarations.get(variable[1])) / 100;
+}
 
 for (const [selector, expected] of Object.entries(expectedColors)) {
   test(`${selector} defines the complete Aera color foundation`, () => {
@@ -119,6 +190,36 @@ for (const [selector, expected] of Object.entries(expectedColors)) {
     }
   });
 }
+
+test("semantic callout titles and content meet WCAG AA in both themes", () => {
+  const roles = [
+    ["title", declarationsFor(css, ".callout-title").get("color")],
+    ["content", declarationsFor(css, ".callout").get("color")],
+  ];
+
+  for (const [themeSelector, types] of Object.entries(calloutTypeColors)) {
+    const theme = declarationsFor(css, themeSelector);
+    const base = hexChannels(theme.get("--color-base-00"));
+    const normal = hexChannels(theme.get("--color-base-100"));
+    const backgroundOpacity = Number.parseFloat(
+      theme.get("--aera-callout-background-opacity"),
+    );
+
+    for (const [type, semantic] of Object.entries(types)) {
+      const background = mixChannels(semantic, base, backgroundOpacity);
+
+      for (const [role, colorDeclaration] of roles) {
+        const weight = calloutSemanticWeight(colorDeclaration, theme);
+        const foreground = mixChannels(semantic, normal, weight);
+        const ratio = channelContrastRatio(foreground, background);
+        assert.ok(
+          ratio >= 4.5,
+          `${themeSelector} ${type} ${role} is ${ratio.toFixed(2)}:1`,
+        );
+      }
+    }
+  }
+});
 
 test("eleven core foreground/background pairs meet WCAG AA contrast", () => {
   assert.deepEqual(CORE_CONTRAST_PAIRS, [
@@ -168,7 +269,12 @@ test("contrast calculation matches WCAG reference endpoints", () => {
   assert.equal(contrastRatio("#647184", "#647184"), 1);
 });
 
-test("contrast CLI prints all eleven pairs", () => {
+test("contrast CLI prints the core and semantic callout pairs", () => {
+  assert.equal(CALLOUT_CONTRAST_PAIRS.length, 24);
+  const allPairs = [
+    ...CORE_CONTRAST_PAIRS,
+    ...CALLOUT_CONTRAST_PAIRS,
+  ];
   const result = spawnSync(
     process.execPath,
     [fileURLToPath(new URL("../scripts/contrast.mjs", import.meta.url))],
@@ -177,8 +283,9 @@ test("contrast CLI prints all eleven pairs", () => {
   const lines = result.stdout.trim().split("\n");
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(lines.length, 11);
-  for (const [index, [name]] of CORE_CONTRAST_PAIRS.entries()) {
+  assert.equal(lines.length, 35);
+  for (const [index, [name, foreground, background]] of allPairs.entries()) {
+    assert.ok(contrastRatio(foreground, background) >= 4.5, name);
     assert.match(lines[index], new RegExp(`^PASS ${name}:`));
   }
 });

@@ -46,8 +46,86 @@ export function contrastRatio(foreground, background) {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
+function mixHex(foreground, background, foregroundWeight) {
+  const channels = rgbChannels(foreground).map((channel, index) =>
+    Math.round(
+      channel * foregroundWeight +
+        rgbChannels(background)[index] * (1 - foregroundWeight),
+    ),
+  );
+
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
+}
+
+const CALLOUT_TYPE_COLORS = {
+  light: {
+    note: "#086ddd",
+    warning: "#ec7500",
+    error: "#e93147",
+    example: "#7852ee",
+    quote: "#9e9e9e",
+    tip: "#00bfbc",
+  },
+  dark: {
+    note: "#027aff",
+    warning: "#e9973f",
+    error: "#fb464c",
+    example: "#a882ff",
+    quote: "#9e9e9e",
+    tip: "#53dfdd",
+  },
+};
+
+const CALLOUT_THEME_CONFIG = {
+  light: {
+    base: "#f8fafc",
+    normal: "#202936",
+    backgroundOpacity: 0.08,
+    titleWeight: 0.52,
+    bodyWeight: 0.5,
+  },
+  dark: {
+    base: "#17191c",
+    normal: "#e7ebf0",
+    backgroundOpacity: 0.12,
+    titleWeight: 0.84,
+    bodyWeight: 0.72,
+  },
+};
+
+export const CALLOUT_CONTRAST_PAIRS = Object.entries(CALLOUT_TYPE_COLORS)
+  .flatMap(([theme, types]) => {
+    const config = CALLOUT_THEME_CONFIG[theme];
+
+    return Object.entries(types).flatMap(([type, semantic]) => {
+      const background = mixHex(
+        semantic,
+        config.base,
+        config.backgroundOpacity,
+      );
+
+      return [
+        [
+          `${theme} callout ${type} title`,
+          mixHex(semantic, config.normal, config.titleWeight),
+          background,
+        ],
+        [
+          `${theme} callout ${type} content`,
+          mixHex(semantic, config.normal, config.bodyWeight),
+          background,
+        ],
+      ];
+    });
+  });
+
+export const ALL_CONTRAST_PAIRS = [
+  ...CORE_CONTRAST_PAIRS,
+  ...CALLOUT_CONTRAST_PAIRS,
+];
+
 export function runContrastCli(
-  pairs = CORE_CONTRAST_PAIRS,
+  pairs = ALL_CONTRAST_PAIRS,
   writeLine = (line) => console.log(line),
 ) {
   let failed = false;

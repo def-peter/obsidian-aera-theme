@@ -36,3 +36,11 @@ body {
 :where(.markdown-source-view.mod-cm6 .HyperMD-codeblock) {
   @include monokai-block;
 }
+
+.markdown-source-view.mod-cm6 :where(.HyperMD-codeblock) {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  width: max-content;
+  min-width: 100%;
+}

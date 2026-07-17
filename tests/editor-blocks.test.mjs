@@ -227,3 +227,18 @@ test("styles CM6 code block lines with direct Monokai declarations", () => {
     monokaiDeclarations,
   );
 });
+
+test("keeps CM6 fenced code lines on one horizontal line", () => {
+  assert.deepEqual(
+    directDeclarations(
+      ".markdown-source-view.mod-cm6 :where(.HyperMD-codeblock)",
+    ),
+    [
+      ["white-space", "pre"],
+      ["word-break", "normal"],
+      ["overflow-wrap", "normal"],
+      ["width", "max-content"],
+      ["min-width", "100%"],
+    ],
+  );
+});

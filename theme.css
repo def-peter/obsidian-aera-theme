@@ -27,6 +27,8 @@
   --aera-inline-code-background: #d9dee5;
   --aera-inline-code-color: #566273;
   --aera-callout-background-opacity: 0.08;
+  --aera-callout-title-semantic-weight: 52%;
+  --aera-callout-body-semantic-weight: 50%;
   --aera-quote-background: #f1f3f6;
   --aera-quote-fold: #d9dee5;
 }
@@ -59,6 +61,8 @@
   --aera-inline-code-background: #2a2f36;
   --aera-inline-code-color: #b8c0cc;
   --aera-callout-background-opacity: 0.12;
+  --aera-callout-title-semantic-weight: 84%;
+  --aera-callout-body-semantic-weight: 72%;
   --aera-quote-background: #22262c;
   --aera-quote-fold: #3a414a;
 }
@@ -289,6 +293,14 @@ body {
   color: #f8f8f2;
 }
 
+.markdown-source-view.mod-cm6 :where(.HyperMD-codeblock) {
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+  width: max-content;
+  min-width: 100%;
+}
+
 body {
   --callout-border-width: 0px;
   --callout-border-opacity: 0;
@@ -303,13 +315,13 @@ body {
   position: relative;
   overflow: hidden;
   background-color: rgba(var(--callout-color), var(--aera-callout-background-opacity));
-  color: color-mix(in srgb, rgb(var(--callout-color)) 72%, var(--text-normal));
+  color: color-mix(in srgb, rgb(var(--callout-color)) var(--aera-callout-body-semantic-weight), var(--text-normal));
   border: 0;
 }
 
 .callout-title {
   padding-inline-end: var(--size-4-12);
-  color: color-mix(in srgb, rgb(var(--callout-color)) 84%, var(--text-normal));
+  color: color-mix(in srgb, rgb(var(--callout-color)) var(--aera-callout-title-semantic-weight), var(--text-normal));
 }
 
 .callout-content {
