@@ -52,6 +52,8 @@ test("defines quote and horizontal rule variables", () => {
 });
 
 const readingQuoteSelector = ".markdown-rendered blockquote";
+const readingFoldSelector =
+  ".markdown-rendered blockquote:not(blockquote blockquote)";
 const livePreviewQuoteSelector =
   ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)";
 const sourceQuoteSelector =
@@ -84,7 +86,7 @@ test("styles reading quotes as bordered paper cards", () => {
 
 test("renders a folded corner on reading quotes", () => {
   assert.deepEqual(
-    Object.fromEntries(declarationsFor(css, `${readingQuoteSelector}::before`)),
+    Object.fromEntries(declarationsFor(css, `${readingFoldSelector}::before`)),
     {
       ...foldBase,
       background: "var(--background-primary)",
@@ -92,13 +94,17 @@ test("renders a folded corner on reading quotes", () => {
     },
   );
   assert.deepEqual(
-    Object.fromEntries(declarationsFor(css, `${readingQuoteSelector}::after`)),
+    Object.fromEntries(declarationsFor(css, `${readingFoldSelector}::after`)),
     {
       ...foldBase,
       background: "var(--aera-quote-fold)",
       "clip-path": "polygon(100% 0, 100% 100%, 0 100%)",
     },
   );
+
+  const selectors = selectorsFor(css);
+  assert.equal(selectors.has(`${readingQuoteSelector}::before`), false);
+  assert.equal(selectors.has(`${readingQuoteSelector}::after`), false);
 });
 
 test("adds one folded corner to the first live preview quote line", () => {

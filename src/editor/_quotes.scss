@@ -43,11 +43,11 @@ body {
   color: var(--blockquote-color);
 }
 
-.markdown-rendered blockquote::before {
+.markdown-rendered blockquote:not(blockquote blockquote)::before {
   @include quote-fold-cutout;
 }
 
-.markdown-rendered blockquote::after {
+.markdown-rendered blockquote:not(blockquote blockquote)::after {
   @include quote-fold-paper;
 }
 

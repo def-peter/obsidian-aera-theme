@@ -179,7 +179,7 @@ body {
   color: var(--blockquote-color);
 }
 
-.markdown-rendered blockquote::before {
+.markdown-rendered blockquote:not(blockquote blockquote)::before {
   content: "";
   position: absolute;
   inset-block-start: -1px;
@@ -191,7 +191,7 @@ body {
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
-.markdown-rendered blockquote::after {
+.markdown-rendered blockquote:not(blockquote blockquote)::after {
   content: "";
   position: absolute;
   inset-block-start: -1px;
