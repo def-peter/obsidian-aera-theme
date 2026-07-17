@@ -20,7 +20,9 @@ published: 2026-07-16
 
 ### 列表与引用
 
-> 这是一段用于检查节奏、边框和弱化文字的普通引用。
+> 第一行引用，用于检查纸张折角。
+> 第二行引用，用于检查连续卡片。
+> > 嵌套引用只保留外层折角。
 
 1. 有序列表项
    1. 嵌套有序列表项
@@ -35,11 +37,18 @@ published: 2026-07-16
 
 #### 代码
 
-```css
-.aera-playground {
-  color: var(--text-normal);
-  background: var(--background-primary);
+```javascript
+// Monokai syntax coverage
+const accent = "#1677FF";
+function renderTheme(name, retries = 3) {
+  return `${name}:${retries}`;
 }
+renderTheme("Aera");
+const horizontalScroll = "This intentionally long JavaScript line verifies horizontal scrolling without wrapping in the Aera code block playground.";
+```
+
+```
+无语言代码块用于检查普通文本。
 ```
 
 ---
@@ -51,6 +60,18 @@ published: 2026-07-16
 
 > [!warning] 警告
 > 此处内容需要重点关注。
+
+> [!error] 错误
+> 错误信息用于检查高优先级状态。
+
+> [!example] 示例
+> 示例内容用于检查独立信息层级。
+
+> [!quote] 引用
+> 引用标注用于检查长文摘录。
+
+> [!tip]- 收起的提示
+> 折叠内容用于检查关闭状态。
 
 ###### 表格、标签、嵌入与脚注
 

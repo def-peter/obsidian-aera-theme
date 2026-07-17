@@ -148,7 +148,9 @@ test("the playground fixture covers the supported Markdown elements", async () =
   assert.match(playground, /^已解析链接：\[\[Embedded Note\]\]$/m);
   assert.match(playground, /^未解析链接：\[\[Missing Note\]\]$/m);
   assert.match(playground, /^外部链接：\[Obsidian\]\(https:\/\/obsidian\.md\)$/m);
-  assert.match(playground, /^> 这是一段用于检查节奏、边框和弱化文字的普通引用。$/m);
+  assert.match(playground, /^> 第一行引用，用于检查纸张折角。$/m);
+  assert.match(playground, /^> 第二行引用，用于检查连续卡片。$/m);
+  assert.match(playground, /^> > 嵌套引用只保留外层折角。$/m);
   assert.match(playground, /^1\. 有序列表项$/m);
   assert.match(playground, /^   1\. 嵌套有序列表项$/m);
   assert.match(playground, /^2\. 另一个有序列表项$/m);
@@ -157,13 +159,37 @@ test("the playground fixture covers the supported Markdown elements", async () =
   assert.match(playground, /^- 另一个无序列表项$/m);
   assert.match(playground, /^- \[x\] 已完成任务$/m);
   assert.match(playground, /^- \[ \] 待完成任务$/m);
-  assert.match(playground, /^```css\n[\s\S]+?^```$/m);
+  assert.match(playground, /^```javascript$/m);
+  assert.match(playground, /^\/\/ Monokai syntax coverage$/m);
+  assert.match(playground, /^const accent = "#1677FF";$/m);
+  assert.match(playground, /^function renderTheme\(name, retries = 3\) \{$/m);
+  assert.match(playground, /^  return `\$\{name\}:\$\{retries\}`;$/m);
+  assert.match(playground, /^\}$/m);
+  assert.match(playground, /^renderTheme\("Aera"\);$/m);
+  assert.match(
+    playground,
+    /^const horizontalScroll = "This intentionally long JavaScript line verifies horizontal scrolling without wrapping in the Aera code block playground\.";$/m,
+  );
   assert.equal(playground.match(/^---$/gm)?.length, 3);
-  assert.match(playground, /^```\n\n---\n\n##### 标注框$/m);
+  assert.match(
+    playground,
+    /^```\n无语言代码块用于检查普通文本。\n```$/m,
+  );
   assert.match(playground, /^> \[!note\] 提示$/m);
   assert.match(playground, /^> 这是一条平静的补充信息。$/m);
   assert.match(playground, /^> \[!warning\] 警告$/m);
   assert.match(playground, /^> 此处内容需要重点关注。$/m);
+  for (const calloutType of [
+    "note",
+    "warning",
+    "error",
+    "example",
+    "quote",
+    "tip",
+  ]) {
+    assert.match(playground, new RegExp(`^> \\[!${calloutType}\\]`, "m"));
+  }
+  assert.match(playground, /^> \[!tip\]- 收起的提示$/m);
   assert.match(playground, /^\| 元素 \| 状态 \| 用途 \|$/m);
   assert.match(playground, /^\| --- \| --- \| --- \|$/m);
   assert.match(playground, /^\| 链接 \| 已解析 \| 导航 \|$/m);
@@ -172,7 +198,7 @@ test("the playground fixture covers the supported Markdown elements", async () =
   assert.match(playground, /^!\[\[Embedded Note\]\]$/m);
   assert.match(playground, /^演练场以脚注引用结束。\[\^aera\]$/m);
   assert.match(playground, /^\[\^aera\]: Aera 是用于检查 Obsidian 主题的演练 fixture。$/m);
-  assert.equal(playground.endsWith(`${fixtureOwnershipMarker}\n`), true);
+  assert.equal(playground.trimEnd().endsWith(fixtureOwnershipMarker), true);
 
   const embedded = await readFile(
     join(repoRoot, "fixtures", "Embedded Note.md"),
