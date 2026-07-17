@@ -237,8 +237,10 @@ test("keeps CM6 fenced code lines on one horizontal line", () => {
       ["white-space", "pre"],
       ["word-break", "normal"],
       ["overflow-wrap", "normal"],
-      ["width", "max-content"],
-      ["min-width", "100%"],
+      ["width", "auto"],
+      ["min-width", "0"],
+      ["overflow-x", "auto"],
+      ["overflow-y", "hidden"],
     ],
   );
 });
