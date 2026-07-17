@@ -4,7 +4,7 @@ import test from "node:test";
 
 import postcss from "postcss";
 
-import { declarationsFor } from "./helpers/css.mjs";
+import { declarationsFor, selectorsFor } from "./helpers/css.mjs";
 
 const css = await readFile(new URL("../theme.css", import.meta.url), "utf8");
 const body = declarationsFor(css, "body");
@@ -40,14 +40,112 @@ test("defines list and task variables", () => {
 
 test("defines quote and horizontal rule variables", () => {
   assertDeclarations({
-    "--blockquote-background-color": "transparent",
-    "--blockquote-border-thickness": "2px",
-    "--blockquote-border-color": "var(--text-accent)",
+    "--blockquote-background-color": "var(--aera-quote-background)",
+    "--blockquote-border-thickness": "0px",
+    "--blockquote-border-color": "transparent",
     "--blockquote-font-style": "normal",
+    "--blockquote-style": "normal",
     "--blockquote-color": "var(--text-muted)",
     "--hr-color": "var(--background-modifier-border)",
     "--hr-thickness": "1px",
   });
+});
+
+const readingQuoteSelector = ".markdown-rendered blockquote";
+const livePreviewQuoteSelector =
+  ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)";
+const sourceQuoteSelector =
+  ".markdown-source-view.mod-cm6:not(.is-live-preview) .HyperMD-quote";
+
+const foldBase = {
+  content: '""',
+  position: "absolute",
+  "inset-block-start": "-1px",
+  "inset-inline-start": "-1px",
+  width: "16px",
+  height: "16px",
+  "pointer-events": "none",
+};
+
+test("styles reading quotes as bordered paper cards", () => {
+  assert.deepEqual(
+    Object.fromEntries(declarationsFor(css, readingQuoteSelector)),
+    {
+      position: "relative",
+      "margin-inline": "0",
+      padding: "var(--size-4-4) var(--size-4-5)",
+      background: "var(--aera-quote-background)",
+      border: "1px solid var(--background-modifier-border)",
+      "border-radius": "6px",
+      color: "var(--blockquote-color)",
+    },
+  );
+});
+
+test("renders a folded corner on reading quotes", () => {
+  assert.deepEqual(
+    Object.fromEntries(declarationsFor(css, `${readingQuoteSelector}::before`)),
+    {
+      ...foldBase,
+      background: "var(--background-primary)",
+      "clip-path": "polygon(0 0, 100% 0, 0 100%)",
+    },
+  );
+  assert.deepEqual(
+    Object.fromEntries(declarationsFor(css, `${readingQuoteSelector}::after`)),
+    {
+      ...foldBase,
+      background: "var(--aera-quote-fold)",
+      "clip-path": "polygon(100% 0, 100% 100%, 0 100%)",
+    },
+  );
+});
+
+test("adds one folded corner to the first live preview quote line", () => {
+  assert.deepEqual(
+    Object.fromEntries(declarationsFor(css, livePreviewQuoteSelector)),
+    {
+      position: "relative",
+      "padding-block-start": "var(--size-4-3)",
+      "border-radius": "6px 6px 0 0",
+    },
+  );
+  assert.deepEqual(
+    Object.fromEntries(declarationsFor(css, `${livePreviewQuoteSelector}::before`)),
+    {
+      ...foldBase,
+      background: "var(--background-primary)",
+      "clip-path": "polygon(0 0, 100% 0, 0 100%)",
+    },
+  );
+  assert.deepEqual(
+    Object.fromEntries(declarationsFor(css, `${livePreviewQuoteSelector}::after`)),
+    {
+      ...foldBase,
+      background: "var(--aera-quote-fold)",
+      "clip-path": "polygon(100% 0, 100% 100%, 0 100%)",
+    },
+  );
+});
+
+test("keeps source mode markers visible on a plain quote surface", () => {
+  assert.deepEqual(
+    Object.fromEntries(declarationsFor(css, sourceQuoteSelector)),
+    {
+      background: "var(--aera-quote-background)",
+      color: "var(--blockquote-color)",
+    },
+  );
+
+  const selectors = selectorsFor(css);
+  assert.equal(selectors.has(`${sourceQuoteSelector}::before`), false);
+  assert.equal(selectors.has(`${sourceQuoteSelector}::after`), false);
+});
+
+test("avoids relational has selectors", () => {
+  for (const selector of selectorsFor(css)) {
+    assert.equal(selector.includes(":has("), false, selector);
+  }
 });
 
 test("keeps inline code on the Aera grayscale", () => {

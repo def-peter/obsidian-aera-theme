@@ -13,6 +13,13 @@ const allowedThemeSelectors = new Set([
   ".callout.is-collapsed .callout-icon",
   ":where(.markdown-rendered pre:not(.frontmatter))",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
+  ".markdown-rendered blockquote",
+  ".markdown-rendered blockquote::before",
+  ".markdown-rendered blockquote::after",
+  ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)",
+  ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)::before",
+  ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)::after",
+  ".markdown-source-view.mod-cm6:not(.is-live-preview) .HyperMD-quote",
 ]);
 const officialCalloutTypeVariables = new Set([
   "--callout-bug",

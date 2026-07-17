@@ -159,13 +159,83 @@ body {
 }
 
 body {
-  --blockquote-background-color: transparent;
-  --blockquote-border-thickness: 2px;
-  --blockquote-border-color: var(--text-accent);
+  --blockquote-background-color: var(--aera-quote-background);
+  --blockquote-border-thickness: 0px;
+  --blockquote-border-color: transparent;
   --blockquote-font-style: normal;
+  --blockquote-style: normal;
   --blockquote-color: var(--text-muted);
   --hr-color: var(--background-modifier-border);
   --hr-thickness: 1px;
+}
+
+.markdown-rendered blockquote {
+  position: relative;
+  margin-inline: 0;
+  padding: var(--size-4-4) var(--size-4-5);
+  background: var(--aera-quote-background);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  color: var(--blockquote-color);
+}
+
+.markdown-rendered blockquote::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background: var(--background-primary);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.markdown-rendered blockquote::after {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background: var(--aera-quote-fold);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote) {
+  position: relative;
+  padding-block-start: var(--size-4-3);
+  border-radius: 6px 6px 0 0;
+}
+
+.markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)::before {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background: var(--background-primary);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)::after {
+  content: "";
+  position: absolute;
+  inset-block-start: -1px;
+  inset-inline-start: -1px;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  background: var(--aera-quote-fold);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.markdown-source-view.mod-cm6:not(.is-live-preview) .HyperMD-quote {
+  background: var(--aera-quote-background);
+  color: var(--blockquote-color);
 }
 
 body {
