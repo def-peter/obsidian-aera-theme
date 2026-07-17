@@ -25,6 +25,7 @@ const allowedSelectors = new Set([
   ":where(.markdown-rendered pre:not(.frontmatter)) code[class*=language-]",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
   ".markdown-source-view.mod-cm6 :where(.HyperMD-codeblock)",
+  ".markdown-source-view.mod-cm6 :where(.HyperMD-codeblock)::-webkit-scrollbar",
   ".markdown-rendered blockquote",
   ".markdown-rendered blockquote:not(blockquote blockquote)::before",
   ".markdown-rendered blockquote:not(blockquote blockquote)::after",

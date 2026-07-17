@@ -241,6 +241,24 @@ test("keeps CM6 fenced code lines on one horizontal line", () => {
       ["min-width", "0"],
       ["overflow-x", "auto"],
       ["overflow-y", "hidden"],
+      ["scrollbar-width", "none"],
     ],
+  );
+});
+
+test("hides only CM6 fenced code line scrollbars", () => {
+  const scrollbarSelector =
+    ".markdown-source-view.mod-cm6 :where(.HyperMD-codeblock)::-webkit-scrollbar";
+
+  assert.deepEqual(directDeclarations(scrollbarSelector), [
+    ["width", "0"],
+    ["height", "0"],
+  ]);
+
+  const selectors = selectorsFor(css);
+  assert.equal(selectors.has(".HyperMD-codeblock::-webkit-scrollbar"), false);
+  assert.equal(
+    selectors.has(".markdown-source-view.mod-cm6::-webkit-scrollbar"),
+    false,
   );
 });

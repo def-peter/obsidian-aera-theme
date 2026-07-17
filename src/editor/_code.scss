@@ -45,4 +45,10 @@ body {
   min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.markdown-source-view.mod-cm6 :where(.HyperMD-codeblock)::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
