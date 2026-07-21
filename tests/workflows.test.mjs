@@ -14,7 +14,7 @@ test("README documents Aera development and release essentials", async () => {
   assert.match(readme, /^# Aera$/m);
   assert.match(readme, /A quiet interface for clear thinking\./);
   assert.match(readme, /Chinese-first/i);
-  assert.match(readme, /!\[[^\]]*Aera[^\]]*\]\(screenshot\.png\)/i);
+  assert.match(readme, /!\[[^\]]*Aera[^\]]*\]\(preview\.png\)/i);
   for (const command of [
     "npm install",
     "npm run build",
