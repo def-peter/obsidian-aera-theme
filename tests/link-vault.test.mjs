@@ -175,11 +175,19 @@ test("the playground fixture covers the supported Markdown elements", async () =
   assert.match(playground, /^> 此处内容需要重点关注。$/m);
   for (const calloutType of [
     "note",
+    "abstract",
+    "info",
+    "todo",
+    "tip",
+    "success",
+    "question",
     "warning",
+    "failure",
     "error",
+    "bug",
     "example",
     "quote",
-    "tip",
+    "custom",
   ]) {
     assert.match(
       playground,

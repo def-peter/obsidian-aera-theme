@@ -1,9 +1,10 @@
 {
   "name": "obsidian-aera-theme",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
+    "assets:sync": "node scripts/sync-fluent-emoji.mjs",
     "dev": "sass --watch --no-source-map --style=expanded --no-error-css src/theme.scss:theme.css",
     "build": "sass --no-source-map --style=expanded --no-error-css src/theme.scss theme.css",
     "link:vault": "node scripts/link-vault.mjs",

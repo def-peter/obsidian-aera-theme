@@ -58,11 +58,35 @@ const horizontalScroll = "This intentionally long JavaScript line verifies horiz
 > [!note] 提示
 > 这是一条平静的补充信息。
 
+> [!abstract] 摘要
+> 摘要信息用于检查纸页图形。
+
+> [!info] 信息
+> 信息内容用于检查环形标记。
+
+> [!todo] 待办
+> 待办内容用于检查手写清单。
+
+> [!tip] 灵感
+> 灵感内容用于检查星芒图形。
+
+> [!success] 完成
+> 完成内容用于检查生长与确认状态。
+
+> [!question] 问题
+> 问题内容用于检查开放状态。
+
 > [!warning] 警告
 > 此处内容需要重点关注。
 
+> [!failure] 失败
+> 失败内容用于检查中断状态。
+
 > [!error] 错误
 > 错误信息用于检查高优先级状态。
+
+> [!bug] 缺陷
+> 缺陷内容用于检查技术问题状态。
 
 > [!example] 示例
 > 示例内容用于检查独立信息层级。
@@ -72,6 +96,9 @@ const horizontalScroll = "This intentionally long JavaScript line verifies horiz
 
 > [!tip]- 收起的提示
 > 折叠内容用于检查关闭状态。
+
+> [!custom] 自定义回退
+> 未映射类型应继续显示 Obsidian 原生图标。
 
 ###### 表格、标签、嵌入与脚注
 

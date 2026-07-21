@@ -10,8 +10,8 @@ export const CORE_CONTRAST_PAIRS = [
   ["dark text", "#e7ebf0", "#17191c"],
   ["dark muted", "#9aa5b4", "#17191c"],
   ["dark text accent", "#4096ff", "#17191c"],
-  ["light inline code", "#566273", "#d9dee5"],
-  ["dark inline code", "#b8c0cc", "#2a2f36"],
+  ["light inline code", "#5d697b", "#e5e9ee"],
+  ["dark inline code", "#c1c7d0", "#30363e"],
   ["monokai normal", "#f8f8f2", "#272822"],
   ["monokai comment", "#929388", "#272822"],
   ["monokai keyword", "#ff4b8b", "#272822"],
@@ -65,6 +65,7 @@ const CALLOUT_TYPE_COLORS = {
     example: "#7852ee",
     quote: "#9e9e9e",
     tip: "#00bfbc",
+    success: "#08b94e",
   },
   dark: {
     note: "#027aff",
@@ -73,6 +74,7 @@ const CALLOUT_TYPE_COLORS = {
     example: "#a882ff",
     quote: "#9e9e9e",
     tip: "#53dfdd",
+    success: "#44cf6e",
   },
 };
 
@@ -81,15 +83,24 @@ const CALLOUT_THEME_CONFIG = {
     base: "#f8fafc",
     normal: "#202936",
     backgroundOpacity: 0.08,
-    titleWeight: 0.52,
-    bodyWeight: 0.5,
+    titleWeight: 0.54,
+    bodyWeight: 0.54,
+    typeWeights: {
+      note: 0.64,
+      warning: 0.6,
+      error: 0.64,
+      example: 0.64,
+      quote: 0.58,
+      tip: 0.54,
+      success: 0.58,
+    },
   },
   dark: {
     base: "#17191c",
     normal: "#e7ebf0",
     backgroundOpacity: 0.12,
-    titleWeight: 0.84,
-    bodyWeight: 0.72,
+    titleWeight: 0.76,
+    bodyWeight: 0.66,
   },
 };
 
@@ -98,6 +109,7 @@ export const CALLOUT_CONTRAST_PAIRS = Object.entries(CALLOUT_TYPE_COLORS)
     const config = CALLOUT_THEME_CONFIG[theme];
 
     return Object.entries(types).flatMap(([type, semantic]) => {
+      const typeWeight = config.typeWeights?.[type];
       const background = mixHex(
         semantic,
         config.base,
@@ -107,12 +119,12 @@ export const CALLOUT_CONTRAST_PAIRS = Object.entries(CALLOUT_TYPE_COLORS)
       return [
         [
           `${theme} callout ${type} title`,
-          mixHex(semantic, config.normal, config.titleWeight),
+          mixHex(semantic, config.normal, typeWeight ?? config.titleWeight),
           background,
         ],
         [
           `${theme} callout ${type} content`,
-          mixHex(semantic, config.normal, config.bodyWeight),
+          mixHex(semantic, config.normal, typeWeight ?? config.bodyWeight),
           background,
         ],
       ];

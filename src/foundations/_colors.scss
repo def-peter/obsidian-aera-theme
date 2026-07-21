@@ -26,11 +26,12 @@
   --text-accent: hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 10%));
   --text-accent-hover: hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 14%));
 
-  --aera-inline-code-background: #d9dee5;
-  --aera-inline-code-color: #566273;
+  --aera-inline-code-background: #e5e9ee;
+  --aera-inline-code-color: #5d697b;
+  --aera-callout-symbol-opacity: 0.28;
   --aera-callout-background-opacity: 0.08;
-  --aera-callout-title-semantic-weight: 52%;
-  --aera-callout-body-semantic-weight: 50%;
+  --aera-callout-title-semantic-weight: 54%;
+  --aera-callout-body-semantic-weight: 54%;
   --aera-quote-background: #f1f3f6;
   --aera-quote-fold: #d9dee5;
 }
@@ -63,11 +64,12 @@
   --text-accent: hsl(var(--accent-h), var(--accent-s), var(--accent-l));
   --text-accent-hover: hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) + 5%));
 
-  --aera-inline-code-background: #2a2f36;
-  --aera-inline-code-color: #b8c0cc;
+  --aera-inline-code-background: #30363e;
+  --aera-inline-code-color: #c1c7d0;
+  --aera-callout-symbol-opacity: 0.32;
   --aera-callout-background-opacity: 0.12;
-  --aera-callout-title-semantic-weight: 84%;
-  --aera-callout-body-semantic-weight: 72%;
+  --aera-callout-title-semantic-weight: 76%;
+  --aera-callout-body-semantic-weight: 66%;
   --aera-quote-background: #22262c;
   --aera-quote-fold: #3a414a;
 }

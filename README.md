@@ -23,4 +23,5 @@ Every release contains `manifest.json` and `theme.css`.
 
 ## License
 
-[MIT](LICENSE)
+Aera is available under the [MIT](LICENSE) License. Embedded third-party assets
+are documented in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -1,4 +1,8 @@
+@use "../generated/fluent-emoji" as emoji;
+
 body {
+  --aera-callout-symbol-image: none;
+  --aera-callout-native-opacity: 1;
   --callout-border-width: 0px;
   --callout-border-opacity: 0;
   --callout-radius: 7px;
@@ -23,6 +27,168 @@ body {
   border: 0;
 }
 
+:where(.callout[data-callout="note"]) {
+  --aera-callout-symbol-image: #{emoji.image("feather")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .callout[data-callout="abstract"],
+  .callout[data-callout="summary"],
+  .callout[data-callout="tldr"]
+) {
+  --aera-callout-symbol-image: #{emoji.image("open-book")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(.callout[data-callout="info"]) {
+  --aera-callout-symbol-image: #{emoji.image("information")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(.callout[data-callout="todo"]) {
+  --aera-callout-symbol-image: #{emoji.image("check-box-with-check")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .callout[data-callout="tip"],
+  .callout[data-callout="hint"],
+  .callout[data-callout="important"]
+) {
+  --aera-callout-symbol-image: #{emoji.image("sparkles")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .callout[data-callout="success"],
+  .callout[data-callout="check"],
+  .callout[data-callout="done"]
+) {
+  --aera-callout-symbol-image: #{emoji.image("seedling")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .callout[data-callout="question"],
+  .callout[data-callout="help"],
+  .callout[data-callout="faq"]
+) {
+  --aera-callout-symbol-image: #{emoji.image("red-question-mark")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .callout[data-callout="warning"],
+  .callout[data-callout="caution"],
+  .callout[data-callout="attention"]
+) {
+  --aera-callout-symbol-image: #{emoji.image("warning")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .callout[data-callout="failure"],
+  .callout[data-callout="fail"],
+  .callout[data-callout="missing"]
+) {
+  --aera-callout-symbol-image: #{emoji.image("prohibited")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .callout[data-callout="danger"],
+  .callout[data-callout="error"]
+) {
+  --aera-callout-symbol-image: #{emoji.image("collision")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(.callout[data-callout="bug"]) {
+  --aera-callout-symbol-image: #{emoji.image("lady-beetle")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(.callout[data-callout="example"]) {
+  --aera-callout-symbol-image: #{emoji.image("card-index-dividers")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .callout[data-callout="quote"],
+  .callout[data-callout="cite"]
+) {
+  --aera-callout-symbol-image: #{emoji.image("speech-balloon")};
+  --aera-callout-native-opacity: 0;
+}
+
+:where(
+  .theme-light .callout[data-callout="note"],
+  .theme-light .callout[data-callout="info"],
+  .theme-light .callout[data-callout="todo"]
+) {
+  --aera-callout-title-semantic-weight: 64%;
+  --aera-callout-body-semantic-weight: 64%;
+}
+
+:where(
+  .theme-light .callout[data-callout="abstract"],
+  .theme-light .callout[data-callout="summary"],
+  .theme-light .callout[data-callout="tldr"],
+  .theme-light .callout[data-callout="tip"],
+  .theme-light .callout[data-callout="hint"],
+  .theme-light .callout[data-callout="important"]
+) {
+  --aera-callout-title-semantic-weight: 54%;
+  --aera-callout-body-semantic-weight: 54%;
+}
+
+:where(
+  .theme-light .callout[data-callout="success"],
+  .theme-light .callout[data-callout="check"],
+  .theme-light .callout[data-callout="done"]
+) {
+  --aera-callout-title-semantic-weight: 58%;
+  --aera-callout-body-semantic-weight: 58%;
+}
+
+:where(
+  .theme-light .callout[data-callout="question"],
+  .theme-light .callout[data-callout="help"],
+  .theme-light .callout[data-callout="faq"],
+  .theme-light .callout[data-callout="warning"],
+  .theme-light .callout[data-callout="caution"],
+  .theme-light .callout[data-callout="attention"]
+) {
+  --aera-callout-title-semantic-weight: 60%;
+  --aera-callout-body-semantic-weight: 60%;
+}
+
+:where(
+  .theme-light .callout[data-callout="failure"],
+  .theme-light .callout[data-callout="fail"],
+  .theme-light .callout[data-callout="missing"],
+  .theme-light .callout[data-callout="danger"],
+  .theme-light .callout[data-callout="error"],
+  .theme-light .callout[data-callout="bug"]
+) {
+  --aera-callout-title-semantic-weight: 64%;
+  --aera-callout-body-semantic-weight: 64%;
+}
+
+:where(.theme-light .callout[data-callout="example"]) {
+  --aera-callout-title-semantic-weight: 64%;
+  --aera-callout-body-semantic-weight: 64%;
+}
+
+:where(
+  .theme-light .callout[data-callout="quote"],
+  .theme-light .callout[data-callout="cite"]
+) {
+  --aera-callout-title-semantic-weight: 58%;
+  --aera-callout-body-semantic-weight: 58%;
+}
+
 .callout-title {
   padding-inline-end: var(--size-4-12);
   color: color-mix(
@@ -39,14 +205,32 @@ body {
 .callout-icon {
   position: absolute;
   inset-inline-end: var(--size-4-2);
-  inset-block-end: calc(var(--size-4-2) * -1);
-  opacity: 0.09;
+  inset-block-end: var(--size-4-1);
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
   pointer-events: none;
 }
 
+.callout-icon::before {
+  grid-area: 1 / 1;
+  width: 46px;
+  height: 46px;
+  content: "";
+  background-image: var(--aera-callout-symbol-image);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  opacity: var(--aera-callout-symbol-opacity);
+}
+
 .callout-icon svg {
+  grid-area: 1 / 1;
   width: 48px;
   height: 48px;
+  stroke-width: 2.5px;
+  opacity: calc(var(--aera-callout-native-opacity) * 0.09);
 }
 
 .callout-fold {

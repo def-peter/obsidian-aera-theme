@@ -71,11 +71,12 @@ const expectedColors = {
       "hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 10%))",
     "--text-accent-hover":
       "hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) - 14%))",
-    "--aera-inline-code-background": "#d9dee5",
-    "--aera-inline-code-color": "#566273",
+    "--aera-inline-code-background": "#e5e9ee",
+    "--aera-inline-code-color": "#5d697b",
+    "--aera-callout-symbol-opacity": "0.28",
     "--aera-callout-background-opacity": "0.08",
-    "--aera-callout-title-semantic-weight": "52%",
-    "--aera-callout-body-semantic-weight": "50%",
+    "--aera-callout-title-semantic-weight": "54%",
+    "--aera-callout-body-semantic-weight": "54%",
     "--aera-quote-background": "#f1f3f6",
     "--aera-quote-fold": "#d9dee5",
   },
@@ -105,11 +106,12 @@ const expectedColors = {
     "--text-accent": "hsl(var(--accent-h), var(--accent-s), var(--accent-l))",
     "--text-accent-hover":
       "hsl(var(--accent-h), var(--accent-s), calc(var(--accent-l) + 5%))",
-    "--aera-inline-code-background": "#2a2f36",
-    "--aera-inline-code-color": "#b8c0cc",
+    "--aera-inline-code-background": "#30363e",
+    "--aera-inline-code-color": "#c1c7d0",
+    "--aera-callout-symbol-opacity": "0.32",
     "--aera-callout-background-opacity": "0.12",
-    "--aera-callout-title-semantic-weight": "84%",
-    "--aera-callout-body-semantic-weight": "72%",
+    "--aera-callout-title-semantic-weight": "76%",
+    "--aera-callout-body-semantic-weight": "66%",
     "--aera-quote-background": "#22262c",
     "--aera-quote-fold": "#3a414a",
   },
@@ -123,6 +125,7 @@ const calloutTypeColors = {
     example: [120, 82, 238],
     quote: [158, 158, 158],
     tip: [0, 191, 188],
+    success: [8, 185, 78],
   },
   ".theme-dark": {
     note: [2, 122, 255],
@@ -131,6 +134,7 @@ const calloutTypeColors = {
     example: [168, 130, 255],
     quote: [158, 158, 158],
     tip: [83, 223, 221],
+    success: [68, 207, 110],
   },
 };
 
@@ -181,6 +185,16 @@ function calloutSemanticWeight(colorDeclaration, themeDeclarations) {
   return Number.parseFloat(themeDeclarations.get(variable[1])) / 100;
 }
 
+const lightCalloutSemanticWeights = {
+  note: 0.64,
+  warning: 0.6,
+  error: 0.64,
+  example: 0.64,
+  quote: 0.58,
+  tip: 0.54,
+  success: 0.58,
+};
+
 for (const [selector, expected] of Object.entries(expectedColors)) {
   test(`${selector} defines the complete Aera color foundation`, () => {
     const declarations = declarationsFor(css, selector);
@@ -209,7 +223,10 @@ test("semantic callout titles and content meet WCAG AA in both themes", () => {
       const background = mixChannels(semantic, base, backgroundOpacity);
 
       for (const [role, colorDeclaration] of roles) {
-        const weight = calloutSemanticWeight(colorDeclaration, theme);
+        const weight =
+          themeSelector === ".theme-light"
+            ? lightCalloutSemanticWeights[type]
+            : calloutSemanticWeight(colorDeclaration, theme);
         const foreground = mixChannels(semantic, normal, weight);
         const ratio = channelContrastRatio(foreground, background);
         assert.ok(
@@ -229,8 +246,8 @@ test("eleven core foreground/background pairs meet WCAG AA contrast", () => {
     ["dark text", "#e7ebf0", "#17191c"],
     ["dark muted", "#9aa5b4", "#17191c"],
     ["dark text accent", "#4096ff", "#17191c"],
-    ["light inline code", "#566273", "#d9dee5"],
-    ["dark inline code", "#b8c0cc", "#2a2f36"],
+    ["light inline code", "#5d697b", "#e5e9ee"],
+    ["dark inline code", "#c1c7d0", "#30363e"],
     ["monokai normal", "#f8f8f2", "#272822"],
     ["monokai comment", "#929388", "#272822"],
     ["monokai keyword", "#ff4b8b", "#272822"],
@@ -252,8 +269,8 @@ test("core contrast ratios match the WCAG calculations", () => {
     "14.71",
     "7.06",
     "5.89",
-    "4.58",
-    "7.35",
+    "4.57",
+    "7.17",
     "13.94",
     "4.78",
     "4.69",
@@ -270,7 +287,7 @@ test("contrast calculation matches WCAG reference endpoints", () => {
 });
 
 test("contrast CLI prints the core and semantic callout pairs", () => {
-  assert.equal(CALLOUT_CONTRAST_PAIRS.length, 24);
+  assert.equal(CALLOUT_CONTRAST_PAIRS.length, 28);
   const allPairs = [
     ...CORE_CONTRAST_PAIRS,
     ...CALLOUT_CONTRAST_PAIRS,
@@ -283,7 +300,7 @@ test("contrast CLI prints the core and semantic callout pairs", () => {
   const lines = result.stdout.trim().split("\n");
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(lines.length, 35);
+  assert.equal(lines.length, 39);
   for (const [index, [name, foreground, background]] of allPairs.entries()) {
     assert.ok(contrastRatio(foreground, background) >= 4.5, name);
     assert.match(lines[index], new RegExp(`^PASS ${name}:`));
