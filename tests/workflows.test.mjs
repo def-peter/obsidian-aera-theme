@@ -12,7 +12,10 @@ test("README documents Aera development and release essentials", async () => {
   const readme = await read("README.md");
 
   assert.match(readme, /^# Aera$/m);
-  assert.match(readme, /A quiet interface for clear thinking\./);
+  assert.match(
+    readme,
+    /A calm Obsidian theme with expressive, clearly structured content\./,
+  );
   assert.match(readme, /Chinese-first/i);
   assert.match(readme, /!\[[^\]]*Aera[^\]]*\]\(preview\.png\)/i);
   for (const command of [

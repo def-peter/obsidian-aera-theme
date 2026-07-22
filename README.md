@@ -1,11 +1,11 @@
 # Aera
 
-> A quiet interface for clear thinking.
+> A calm Obsidian theme with expressive, clearly structured content.
 
 Aera is a Chinese-first Obsidian theme shaped around calm reading, clear
-hierarchy, and restrained detail. It gives Chinese text a comfortable rhythm
-while keeping occasional English typography, code, and interface elements in
-balance.
+hierarchy, and expressive content structure. It gives Chinese text a comfortable
+rhythm while keeping occasional English typography, code, and interface elements
+in balance.
 
 ![Aera theme preview](preview.png)
 
@@ -15,8 +15,10 @@ Aera keeps Obsidian familiar. It respects the app's reading width and user font
 size, then refines the surfaces around them with a quiet blue accent, generous
 line height, and a neutral foundation that works in both light and dark mode.
 
-The theme is designed to stay out of the way during long writing sessions while
-still giving structured notes a distinct visual identity.
+The workspace stays calm while deliberate color, illustration, and surface
+treatment make each content type easy to recognize. Semantic callouts,
+paper-like quotes, and Monokai code blocks create strong local identities without
+making the overall interface noisy.
 
 ## Highlights
 
