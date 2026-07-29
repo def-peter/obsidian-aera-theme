@@ -16,7 +16,6 @@
   @include quote-fold-base;
 
   background: var(--background-primary);
-  clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
 @mixin quote-fold-paper {
@@ -29,7 +28,6 @@
       calc(50% + 0.5px),
     var(--aera-quote-fold) calc(50% + 0.5px)
   );
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
 
 body {

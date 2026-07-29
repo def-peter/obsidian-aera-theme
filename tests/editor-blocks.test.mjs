@@ -79,7 +79,6 @@ const foldBase = {
 const foldCutout = {
   ...foldBase,
   background: "var(--background-primary)",
-  "clip-path": "polygon(0 0, 100% 0, 0 100%)",
 };
 const foldPaperBackground =
   "linear-gradient(135deg, transparent calc(50% - 0.5px), var(--background-modifier-border) calc(50% - 0.5px) calc(50% + 0.5px), var(--aera-quote-fold) calc(50% + 0.5px))";
@@ -136,7 +135,6 @@ test("renders a folded corner on reading quotes", () => {
     {
       ...foldBase,
       background: foldPaperBackground,
-      "clip-path": "polygon(100% 0, 100% 100%, 0 100%)",
     },
   );
 
@@ -168,7 +166,6 @@ test("adds one folded corner to the first live preview quote line", () => {
     {
       ...foldBase,
       background: foldPaperBackground,
-      "clip-path": "polygon(100% 0, 100% 100%, 0 100%)",
     },
   );
 });
