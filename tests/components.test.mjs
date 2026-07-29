@@ -34,6 +34,8 @@ const allowedSelectors = new Set([
   ".markdown-rendered blockquote",
   ".markdown-rendered blockquote:not(blockquote blockquote)::before",
   ".markdown-rendered blockquote:not(blockquote blockquote)::after",
+  ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote",
+  ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote:not(:has(+ .HyperMD-quote))",
   ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)",
   ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)::before",
   ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote-1:not(.HyperMD-quote + .HyperMD-quote)::after",

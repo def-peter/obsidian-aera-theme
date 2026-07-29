@@ -10,6 +10,9 @@ const allowedKeys = new Set([
 ]);
 const requiredKeys = ["author", "minAppVersion", "name", "version"];
 const semver = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const allowedRelationalSelectors = new Set([
+  ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote:not(:has(+ .HyperMD-quote))",
+]);
 
 function isPlainObject(value) {
   if (value === null || typeof value !== "object") return false;
@@ -105,7 +108,10 @@ export function validateCss(css) {
   const remoteUrl = /url\(\s*["']?\s*(?:https?:)?\/\//i;
 
   root.walkRules((rule) => {
-    if (/:has\s*\(/i.test(rule.selector)) {
+    if (
+      /:has\s*\(/i.test(rule.selector) &&
+      !allowedRelationalSelectors.has(rule.selector)
+    ) {
       errors.add("theme.css must not contain :has()");
     }
   });

@@ -176,6 +176,17 @@ test("validateCss accepts CSS that follows theme policy", () => {
   assert.deepEqual(validateCss(":root { --aera-accent: #3d6b5f; }"), []);
 });
 
+test("validateCss permits only the bounded live preview quote ending selector", () => {
+  const selector =
+    ".markdown-source-view.mod-cm6.is-live-preview .HyperMD-quote:not(:has(+ .HyperMD-quote))";
+
+  assert.deepEqual(validateCss(`${selector} { padding-block-end: 1rem; }`), []);
+  assert.match(
+    validateCss(`${selector}, .item:has(.active) { color: red; }`).join("\n"),
+    /must not contain :has/,
+  );
+});
+
 test("validateCss rejects every runtime import", () => {
   for (const css of [
     '@import "https://example.com/theme.css";',
