@@ -6,7 +6,6 @@ import {
   assertThemeStructure,
   calloutTypeSelectors,
   declarationsFor,
-  lightCalloutTextSelectors,
   selectorsFor,
 } from "./helpers/css.mjs";
 
@@ -17,15 +16,15 @@ const allowedSelectors = new Set([
   ".theme-dark",
   "body",
   ".callout",
+  ".callout::after",
   ".callout-title",
   ".callout-content",
   ".callout-icon",
   ".callout-icon::before",
   ".callout-icon svg",
   ".callout-fold",
-  ".callout.is-collapsed .callout-icon",
+  ".callout.is-collapsed::after",
   ...calloutTypeSelectors,
-  ...lightCalloutTextSelectors,
   ":where(.markdown-rendered pre:not(.frontmatter))",
   ":where(.markdown-rendered pre:not(.frontmatter)) code[class*=language-]",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",
@@ -125,6 +124,10 @@ test("styles callouts without replacing semantic type colors", () => {
 
 test("defines flat emoji defaults with a native icon fallback", () => {
   assert.equal(body.get("--aera-callout-symbol-image"), "none");
+  assert.equal(
+    body.get("--aera-callout-surface-color"),
+    "var(--callout-color)",
+  );
   assert.equal(body.get("--aera-callout-native-opacity"), "1");
 });
 
@@ -135,10 +138,10 @@ test("uses a borderless semantic callout surface", () => {
     position: "relative",
     overflow: "hidden",
     "background-color":
-      "rgba(var(--callout-color), var(--aera-callout-background-opacity))",
-    color:
-      "color-mix(in srgb, rgb(var(--callout-color)) var(--aera-callout-body-semantic-weight), var(--text-normal))",
+      "color-mix(in srgb, var(--aera-callout-surface-color) var(--aera-callout-background-tint), var(--aera-callout-background))",
+    color: "var(--text-normal)",
     border: "0",
+    "border-inline-start": "3px solid var(--aera-callout-surface-color)",
   });
 });
 
@@ -148,63 +151,92 @@ test("keeps callout text clear of the watermark", () => {
 
   assert.equal(title.has("position"), false);
   assert.deepEqual(Object.fromEntries(title), {
+    "align-items": "center",
+    gap: "var(--size-2-2)",
     "padding-inline-end": "var(--size-4-12)",
-    color:
-      "color-mix(in srgb, rgb(var(--callout-color)) var(--aera-callout-title-semantic-weight), var(--text-normal))",
+    color: "var(--text-normal)",
   });
   assert.deepEqual(Object.fromEntries(content), {
     "padding-inline-end": "var(--size-4-12)",
   });
 });
 
-test("renders callout symbols as non-interactive watermarks", () => {
+test("renders opaque title icons with separate quiet watermarks", () => {
   assert.deepEqual(Object.fromEntries(declarationsFor(css, ".callout-icon")), {
-    position: "absolute",
-    "inset-inline-end": "var(--size-4-2)",
-    "inset-block-end": "var(--size-4-1)",
     display: "grid",
-    width: "48px",
-    height: "48px",
+    "flex-shrink": "0",
+    width: "18px",
+    height: "18px",
     "place-items": "center",
     "pointer-events": "none",
+    transform: "translateY(-1px)",
   });
   assert.deepEqual(
     Object.fromEntries(declarationsFor(css, ".callout-icon::before")),
     {
       "grid-area": "1/1",
-      width: "46px",
-      height: "46px",
+      width: "18px",
+      height: "18px",
       content: '""',
       "background-image": "var(--aera-callout-symbol-image)",
       "background-position": "center",
       "background-repeat": "no-repeat",
       "background-size": "contain",
-      opacity: "var(--aera-callout-symbol-opacity)",
+      opacity: "1",
     },
   );
   assert.deepEqual(
     Object.fromEntries(declarationsFor(css, ".callout-icon svg")),
     {
       "grid-area": "1/1",
-      width: "48px",
-      height: "48px",
-      "stroke-width": "2.5px",
-      opacity: "calc(var(--aera-callout-native-opacity) * 0.09)",
+      width: "18px",
+      height: "18px",
+      "stroke-width": "2px",
+      opacity: "var(--aera-callout-native-opacity)",
     },
   );
+  assert.deepEqual(Object.fromEntries(declarationsFor(css, ".callout::after")), {
+    position: "absolute",
+    "inset-inline-end": "var(--size-4-2)",
+    "inset-block-end": "var(--size-4-1)",
+    width: "46px",
+    height: "46px",
+    content: '""',
+    "background-image": "var(--aera-callout-symbol-image)",
+    "background-position": "center",
+    "background-repeat": "no-repeat",
+    "background-size": "contain",
+    opacity: "var(--aera-callout-symbol-opacity)",
+    "pointer-events": "none",
+  });
   assert.deepEqual(Object.fromEntries(declarationsFor(css, ".callout-fold")), {
     position: "relative",
     "z-index": "2",
   });
   assert.deepEqual(
     Object.fromEntries(
-      declarationsFor(css, ".callout.is-collapsed .callout-icon"),
+      declarationsFor(css, ".callout.is-collapsed::after"),
     ),
     { display: "none" },
   );
 });
 
 test("embeds a distinct Fluent Emoji Flat asset for every callout family", () => {
+  const surfaceColors = [
+    "#f3ad61",
+    "#00a6ed",
+    "#00a6ed",
+    "#785dc8",
+    "#f9c23c",
+    "#6dd534",
+    "#f8312f",
+    "#ffb02e",
+    "#f8312f",
+    "#f8312f",
+    "#f8312f",
+    "#7852ee",
+    "#9b9b9b",
+  ];
   const images = calloutTypeSelectors.map((selector) => {
     const declarations = declarationsFor(css, selector);
     const image = declarations.get("--aera-callout-symbol-image");
@@ -219,24 +251,15 @@ test("embeds a distinct Fluent Emoji Flat asset for every callout family", () =>
     return image;
   });
 
-  assert.equal(calloutTypeSelectors.length, 13);
-  assert.equal(new Set(images).size, 13);
-});
-
-test("lightens light-theme callout text by semantic color family", () => {
-  const expectedWeights = ["64%", "54%", "58%", "60%", "64%", "64%", "58%"];
-
-  for (const [index, selector] of lightCalloutTextSelectors.entries()) {
-    const declarations = declarationsFor(css, selector);
+  for (const [index, selector] of calloutTypeSelectors.entries()) {
     assert.equal(
-      declarations.get("--aera-callout-title-semantic-weight"),
-      expectedWeights[index],
-    );
-    assert.equal(
-      declarations.get("--aera-callout-body-semantic-weight"),
-      expectedWeights[index],
+      declarationsFor(css, selector).get("--aera-callout-surface-color"),
+      surfaceColors[index],
     );
   }
+
+  assert.equal(calloutTypeSelectors.length, surfaceColors.length);
+  assert.equal(new Set(images).size, 13);
 });
 
 test("defines the complete table component variables", () => {

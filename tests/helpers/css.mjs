@@ -16,30 +16,20 @@ export const calloutTypeSelectors = [
   ":where(.callout[data-callout=quote],\n.callout[data-callout=cite])",
 ];
 
-export const lightCalloutTextSelectors = [
-  ":where(.theme-light .callout[data-callout=note],\n.theme-light .callout[data-callout=info],\n.theme-light .callout[data-callout=todo])",
-  ":where(.theme-light .callout[data-callout=abstract],\n.theme-light .callout[data-callout=summary],\n.theme-light .callout[data-callout=tldr],\n.theme-light .callout[data-callout=tip],\n.theme-light .callout[data-callout=hint],\n.theme-light .callout[data-callout=important])",
-  ":where(.theme-light .callout[data-callout=success],\n.theme-light .callout[data-callout=check],\n.theme-light .callout[data-callout=done])",
-  ":where(.theme-light .callout[data-callout=question],\n.theme-light .callout[data-callout=help],\n.theme-light .callout[data-callout=faq],\n.theme-light .callout[data-callout=warning],\n.theme-light .callout[data-callout=caution],\n.theme-light .callout[data-callout=attention])",
-  ":where(.theme-light .callout[data-callout=failure],\n.theme-light .callout[data-callout=fail],\n.theme-light .callout[data-callout=missing],\n.theme-light .callout[data-callout=danger],\n.theme-light .callout[data-callout=error],\n.theme-light .callout[data-callout=bug])",
-  ":where(.theme-light .callout[data-callout=example])",
-  ":where(.theme-light .callout[data-callout=quote],\n.theme-light .callout[data-callout=cite])",
-];
-
 const allowedThemeSelectors = new Set([
   ".theme-light",
   ".theme-dark",
   "body",
   ".callout",
+  ".callout::after",
   ".callout-title",
   ".callout-content",
   ".callout-icon",
   ".callout-icon::before",
   ".callout-icon svg",
   ".callout-fold",
-  ".callout.is-collapsed .callout-icon",
+  ".callout.is-collapsed::after",
   ...calloutTypeSelectors,
-  ...lightCalloutTextSelectors,
   ":where(.markdown-rendered pre:not(.frontmatter))",
   ":where(.markdown-rendered pre:not(.frontmatter)) code[class*=language-]",
   ":where(.markdown-source-view.mod-cm6 .HyperMD-codeblock)",

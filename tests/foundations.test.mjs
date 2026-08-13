@@ -74,9 +74,8 @@ const expectedColors = {
     "--aera-inline-code-background": "#e5e9ee",
     "--aera-inline-code-color": "#5d697b",
     "--aera-callout-symbol-opacity": "0.28",
-    "--aera-callout-background-opacity": "0.08",
-    "--aera-callout-title-semantic-weight": "54%",
-    "--aera-callout-body-semantic-weight": "54%",
+    "--aera-callout-background": "#ffffff",
+    "--aera-callout-background-tint": "8%",
     "--aera-quote-background": "#f1f3f6",
     "--aera-quote-fold": "#d9dee5",
   },
@@ -109,33 +108,24 @@ const expectedColors = {
     "--aera-inline-code-background": "#30363e",
     "--aera-inline-code-color": "#c1c7d0",
     "--aera-callout-symbol-opacity": "0.32",
-    "--aera-callout-background-opacity": "0.12",
-    "--aera-callout-title-semantic-weight": "76%",
-    "--aera-callout-body-semantic-weight": "66%",
+    "--aera-callout-background": "#20242a",
+    "--aera-callout-background-tint": "4%",
     "--aera-quote-background": "#22262c",
     "--aera-quote-fold": "#3a414a",
   },
 };
 
-const calloutTypeColors = {
-  ".theme-light": {
-    note: [8, 109, 221],
-    warning: [236, 117, 0],
-    error: [233, 49, 71],
-    example: [120, 82, 238],
-    quote: [158, 158, 158],
-    tip: [0, 191, 188],
-    success: [8, 185, 78],
-  },
-  ".theme-dark": {
-    note: [2, 122, 255],
-    warning: [233, 151, 63],
-    error: [251, 70, 76],
-    example: [168, 130, 255],
-    quote: [158, 158, 158],
-    tip: [83, 223, 221],
-    success: [68, 207, 110],
-  },
+const calloutSurfaceColors = {
+  note: [243, 173, 97],
+  abstract: [0, 166, 237],
+  todo: [120, 93, 200],
+  tip: [249, 194, 60],
+  success: [109, 213, 52],
+  question: [248, 49, 47],
+  warning: [255, 176, 46],
+  error: [248, 49, 47],
+  example: [120, 82, 238],
+  quote: [155, 155, 155],
 };
 
 function hexChannels(hex) {
@@ -172,29 +162,6 @@ function channelContrastRatio(foreground, background) {
   );
 }
 
-function calloutSemanticWeight(colorDeclaration, themeDeclarations) {
-  const literal = colorDeclaration.match(
-    /rgb\(var\(--callout-color\)\) ([0-9.]+)%/,
-  );
-  if (literal) return Number(literal[1]) / 100;
-
-  const variable = colorDeclaration.match(
-    /rgb\(var\(--callout-color\)\) var\((--[^)]+)\)/,
-  );
-  assert.ok(variable, colorDeclaration);
-  return Number.parseFloat(themeDeclarations.get(variable[1])) / 100;
-}
-
-const lightCalloutSemanticWeights = {
-  note: 0.64,
-  warning: 0.6,
-  error: 0.64,
-  example: 0.64,
-  quote: 0.58,
-  tip: 0.54,
-  success: 0.58,
-};
-
 for (const [selector, expected] of Object.entries(expectedColors)) {
   test(`${selector} defines the complete Aera color foundation`, () => {
     const declarations = declarationsFor(css, selector);
@@ -205,35 +172,20 @@ for (const [selector, expected] of Object.entries(expectedColors)) {
   });
 }
 
-test("semantic callout titles and content meet WCAG AA in both themes", () => {
-  const roles = [
-    ["title", declarationsFor(css, ".callout-title").get("color")],
-    ["content", declarationsFor(css, ".callout").get("color")],
-  ];
-
-  for (const [themeSelector, types] of Object.entries(calloutTypeColors)) {
+test("neutral callout text meets WCAG AA on icon-family surfaces", () => {
+  for (const themeSelector of [".theme-light", ".theme-dark"]) {
     const theme = declarationsFor(css, themeSelector);
-    const base = hexChannels(theme.get("--color-base-00"));
+    const base = hexChannels(theme.get("--aera-callout-background"));
     const normal = hexChannels(theme.get("--color-base-100"));
-    const backgroundOpacity = Number.parseFloat(
-      theme.get("--aera-callout-background-opacity"),
-    );
+    const backgroundTint =
+      Number.parseFloat(theme.get("--aera-callout-background-tint")) / 100;
 
-    for (const [type, semantic] of Object.entries(types)) {
-      const background = mixChannels(semantic, base, backgroundOpacity);
-
-      for (const [role, colorDeclaration] of roles) {
-        const weight =
-          themeSelector === ".theme-light"
-            ? lightCalloutSemanticWeights[type]
-            : calloutSemanticWeight(colorDeclaration, theme);
-        const foreground = mixChannels(semantic, normal, weight);
-        const ratio = channelContrastRatio(foreground, background);
-        assert.ok(
-          ratio >= 4.5,
-          `${themeSelector} ${type} ${role} is ${ratio.toFixed(2)}:1`,
-        );
-      }
+    for (const [type, surface] of Object.entries(calloutSurfaceColors)) {
+      const background = mixChannels(surface, base, backgroundTint);
+      assert.ok(
+        channelContrastRatio(normal, background) >= 4.5,
+        `${themeSelector} ${type} text must meet WCAG AA`,
+      );
     }
   }
 });
@@ -287,7 +239,7 @@ test("contrast calculation matches WCAG reference endpoints", () => {
 });
 
 test("contrast CLI prints the core and semantic callout pairs", () => {
-  assert.equal(CALLOUT_CONTRAST_PAIRS.length, 28);
+  assert.equal(CALLOUT_CONTRAST_PAIRS.length, 40);
   const allPairs = [
     ...CORE_CONTRAST_PAIRS,
     ...CALLOUT_CONTRAST_PAIRS,
@@ -300,7 +252,7 @@ test("contrast CLI prints the core and semantic callout pairs", () => {
   const lines = result.stdout.trim().split("\n");
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(lines.length, 39);
+  assert.equal(lines.length, 51);
   for (const [index, [name, foreground, background]] of allPairs.entries()) {
     assert.ok(contrastRatio(foreground, background) >= 4.5, name);
     assert.match(lines[index], new RegExp(`^PASS ${name}:`));
