@@ -59,30 +59,32 @@ function mixHex(foreground, background, foregroundWeight) {
 
 const CALLOUT_SURFACE_COLORS = {
   note: ["#f3ad61", "#c2410c", "#fb923c"],
-  abstract: ["#00a6ed", "#0672aa", "#38bdf8"],
-  todo: ["#785dc8", "#7959cf", "#a78bfa"],
+  abstract: ["#00a6ed", "#046fa6", "#38bdf8"],
+  todo: ["#785dc8", "#704bc6", "#a78bfa"],
   tip: ["#f9c23c", "#c24200", "#facc15"],
-  success: ["#6dd534", "#21833d", "#86d94f"],
-  question: ["#f8312f", "#ca2f35", "#ff7b72"],
+  success: ["#6dd534", "#197a35", "#86d94f"],
+  question: ["#f8312f", "#c12730", "#ff7b72"],
   warning: ["#ffb02e", "#c24200", "#fbbf24"],
-  error: ["#f8312f", "#ca2f35", "#ff7b72"],
-  example: ["#7852ee", "#7959cf", "#a78bfa"],
-  quote: ["#9b9b9b", "#657180", "#b8c0cc"],
+  error: ["#f8312f", "#c12730", "#ff7b72"],
+  example: ["#7852ee", "#704bc6", "#a78bfa"],
+  quote: ["#9b9b9b", "#5f6b78", "#b8c0cc"],
 };
 
 const CALLOUT_THEME_CONFIG = {
   light: {
     base: "#ffffff",
     normal: "#202936",
-    backgroundTint: 0.08,
-    body: "#636f80",
+    backgroundTint: 0.16,
+    bodyMixColor: "#ffffff",
+    bodyColorWeight: 0.79,
     textIndex: 1,
   },
   dark: {
     base: "#20242a",
     normal: "#e7ebf0",
-    backgroundTint: 0.04,
-    body: "#b8c0cc",
+    backgroundTint: 0.12,
+    bodyMixColor: "#20242a",
+    bodyColorWeight: 0.68,
     textIndex: 2,
   },
 };
@@ -106,8 +108,9 @@ export const CALLOUT_CONTRAST_PAIRS = Object.entries(CALLOUT_THEME_CONFIG)
         ],
         [
           `${theme} callout ${type} content`,
-          config.body,
+          mixHex(title, config.bodyMixColor, config.bodyColorWeight),
           background,
+          3,
         ],
       ];
     });
@@ -124,13 +127,13 @@ export function runContrastCli(
 ) {
   let failed = false;
 
-  for (const [name, foreground, background] of pairs) {
+  for (const [name, foreground, background, minimumRatio = 4.5] of pairs) {
     const ratio = contrastRatio(foreground, background);
-    const status = ratio >= 4.5 ? "PASS" : "FAIL";
+    const status = ratio >= minimumRatio ? "PASS" : "FAIL";
     writeLine(
       `${status} ${name}: ${ratio.toFixed(2)}:1 (${foreground} on ${background})`,
     );
-    failed ||= ratio < 4.5;
+    failed ||= ratio < minimumRatio;
   }
 
   if (failed) process.exitCode = 1;

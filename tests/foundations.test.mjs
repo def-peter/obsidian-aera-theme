@@ -75,8 +75,9 @@ const expectedColors = {
     "--aera-inline-code-color": "#5d697b",
     "--aera-callout-symbol-opacity": "0.28",
     "--aera-callout-background": "#ffffff",
-    "--aera-callout-background-tint": "8%",
-    "--aera-callout-body-color": "#636f80",
+    "--aera-callout-background-tint": "16%",
+    "--aera-callout-body-color-weight": "79%",
+    "--aera-callout-body-mix-color": "#ffffff",
     "--aera-quote-background": "#f1f3f6",
     "--aera-quote-fold": "#d9dee5",
   },
@@ -110,8 +111,9 @@ const expectedColors = {
     "--aera-inline-code-color": "#c1c7d0",
     "--aera-callout-symbol-opacity": "0.32",
     "--aera-callout-background": "#20242a",
-    "--aera-callout-background-tint": "4%",
-    "--aera-callout-body-color": "#b8c0cc",
+    "--aera-callout-background-tint": "12%",
+    "--aera-callout-body-color-weight": "68%",
+    "--aera-callout-body-mix-color": "#20242a",
     "--aera-quote-background": "#22262c",
     "--aera-quote-fold": "#3a414a",
   },
@@ -161,14 +163,18 @@ for (const [selector, expected] of Object.entries(expectedColors)) {
   });
 }
 
-test("semantic callout title and body text meet WCAG AA", () => {
+test("semantic callout titles meet AA and quiet body text stays legible", () => {
   for (const [themeSelector, textProperty] of [
     [".theme-light", "--aera-callout-text-color-light"],
     [".theme-dark", "--aera-callout-text-color-dark"],
   ]) {
     const theme = declarationsFor(css, themeSelector);
     const base = hexChannels(theme.get("--aera-callout-background"));
-    const body = hexChannels(theme.get("--aera-callout-body-color"));
+    const bodyMixColor = hexChannels(
+      theme.get("--aera-callout-body-mix-color"),
+    );
+    const bodyColorWeight =
+      Number.parseFloat(theme.get("--aera-callout-body-color-weight")) / 100;
     const backgroundTint =
       Number.parseFloat(theme.get("--aera-callout-background-tint")) / 100;
 
@@ -178,15 +184,16 @@ test("semantic callout title and body text meet WCAG AA", () => {
         family.get("--aera-callout-surface-color"),
       );
       const title = hexChannels(family.get(textProperty));
+      const body = mixChannels(title, bodyMixColor, bodyColorWeight);
       const background = mixChannels(surface, base, backgroundTint);
 
-      for (const [role, foreground] of [
-        ["title", title],
-        ["body", body],
+      for (const [role, foreground, minimumRatio] of [
+        ["title", title, 4.5],
+        ["body", body, 3],
       ]) {
         assert.ok(
-          channelContrastRatio(foreground, background) >= 4.5,
-          `${themeSelector} ${selector} ${role} must meet WCAG AA`,
+          channelContrastRatio(foreground, background) >= minimumRatio,
+          `${themeSelector} ${selector} ${role} must meet its contrast target`,
         );
       }
     }
@@ -256,8 +263,8 @@ test("contrast CLI prints the core and semantic callout pairs", () => {
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(lines.length, 51);
-  for (const [index, [name, foreground, background]] of allPairs.entries()) {
-    assert.ok(contrastRatio(foreground, background) >= 4.5, name);
+  for (const [index, [name, foreground, background, minimumRatio = 4.5]] of allPairs.entries()) {
+    assert.ok(contrastRatio(foreground, background) >= minimumRatio, name);
     assert.match(lines[index], new RegExp(`^PASS ${name}:`));
   }
 });

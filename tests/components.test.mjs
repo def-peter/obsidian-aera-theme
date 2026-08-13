@@ -149,9 +149,7 @@ test("uses a borderless semantic callout surface", () => {
     overflow: "hidden",
     "background-color":
       "color-mix(in srgb, var(--aera-callout-surface-color) var(--aera-callout-background-tint), var(--aera-callout-background))",
-    color: "var(--aera-callout-body-color)",
     border: "0",
-    "border-inline-start": "3px solid var(--aera-callout-surface-color)",
   });
 });
 
@@ -183,6 +181,8 @@ test("keeps callout text clear of the watermark", () => {
   });
   assert.deepEqual(Object.fromEntries(content), {
     "padding-inline-end": "var(--size-4-12)",
+    color:
+      "color-mix(in srgb, var(--aera-callout-text-color) var(--aera-callout-body-color-weight), var(--aera-callout-body-mix-color))",
   });
 });
 
@@ -264,18 +264,18 @@ test("embeds distinct Fluent Emoji assets and semantic colors for every callout 
   ];
   const lightTextColors = [
     "#c2410c",
-    "#0672aa",
-    "#0672aa",
-    "#7959cf",
+    "#046fa6",
+    "#046fa6",
+    "#704bc6",
     "#c24200",
-    "#21833d",
-    "#ca2f35",
+    "#197a35",
+    "#c12730",
     "#c24200",
-    "#ca2f35",
-    "#ca2f35",
-    "#ca2f35",
-    "#7959cf",
-    "#657180",
+    "#c12730",
+    "#c12730",
+    "#c12730",
+    "#704bc6",
+    "#5f6b78",
   ];
   const darkTextColors = [
     "#fb923c",
