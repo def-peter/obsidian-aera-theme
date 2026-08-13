@@ -21,6 +21,8 @@ const allowedThemeSelectors = new Set([
   ".theme-dark",
   "body",
   ".callout",
+  ":where(.theme-light .callout)",
+  ":where(.theme-dark .callout)",
   ".callout::after",
   ".callout-title",
   ".callout-content",

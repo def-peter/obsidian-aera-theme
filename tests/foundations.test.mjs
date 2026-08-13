@@ -14,7 +14,7 @@ import {
   relativeLuminance,
   runContrastCli,
 } from "../scripts/contrast.mjs";
-import { declarationsFor } from "./helpers/css.mjs";
+import { calloutTypeSelectors, declarationsFor } from "./helpers/css.mjs";
 
 const css = await readFile(new URL("../theme.css", import.meta.url), "utf8");
 const normalizeWhitespace = (value) => value.replace(/\s+/g, " ");
@@ -76,6 +76,7 @@ const expectedColors = {
     "--aera-callout-symbol-opacity": "0.28",
     "--aera-callout-background": "#ffffff",
     "--aera-callout-background-tint": "8%",
+    "--aera-callout-body-color": "#636f80",
     "--aera-quote-background": "#f1f3f6",
     "--aera-quote-fold": "#d9dee5",
   },
@@ -110,22 +111,10 @@ const expectedColors = {
     "--aera-callout-symbol-opacity": "0.32",
     "--aera-callout-background": "#20242a",
     "--aera-callout-background-tint": "4%",
+    "--aera-callout-body-color": "#b8c0cc",
     "--aera-quote-background": "#22262c",
     "--aera-quote-fold": "#3a414a",
   },
-};
-
-const calloutSurfaceColors = {
-  note: [243, 173, 97],
-  abstract: [0, 166, 237],
-  todo: [120, 93, 200],
-  tip: [249, 194, 60],
-  success: [109, 213, 52],
-  question: [248, 49, 47],
-  warning: [255, 176, 46],
-  error: [248, 49, 47],
-  example: [120, 82, 238],
-  quote: [155, 155, 155],
 };
 
 function hexChannels(hex) {
@@ -172,20 +161,34 @@ for (const [selector, expected] of Object.entries(expectedColors)) {
   });
 }
 
-test("neutral callout text meets WCAG AA on icon-family surfaces", () => {
-  for (const themeSelector of [".theme-light", ".theme-dark"]) {
+test("semantic callout title and body text meet WCAG AA", () => {
+  for (const [themeSelector, textProperty] of [
+    [".theme-light", "--aera-callout-text-color-light"],
+    [".theme-dark", "--aera-callout-text-color-dark"],
+  ]) {
     const theme = declarationsFor(css, themeSelector);
     const base = hexChannels(theme.get("--aera-callout-background"));
-    const normal = hexChannels(theme.get("--color-base-100"));
+    const body = hexChannels(theme.get("--aera-callout-body-color"));
     const backgroundTint =
       Number.parseFloat(theme.get("--aera-callout-background-tint")) / 100;
 
-    for (const [type, surface] of Object.entries(calloutSurfaceColors)) {
-      const background = mixChannels(surface, base, backgroundTint);
-      assert.ok(
-        channelContrastRatio(normal, background) >= 4.5,
-        `${themeSelector} ${type} text must meet WCAG AA`,
+    for (const selector of calloutTypeSelectors) {
+      const family = declarationsFor(css, selector);
+      const surface = hexChannels(
+        family.get("--aera-callout-surface-color"),
       );
+      const title = hexChannels(family.get(textProperty));
+      const background = mixChannels(surface, base, backgroundTint);
+
+      for (const [role, foreground] of [
+        ["title", title],
+        ["body", body],
+      ]) {
+        assert.ok(
+          channelContrastRatio(foreground, background) >= 4.5,
+          `${themeSelector} ${selector} ${role} must meet WCAG AA`,
+        );
+      }
     }
   }
 });

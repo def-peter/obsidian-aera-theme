@@ -58,16 +58,16 @@ function mixHex(foreground, background, foregroundWeight) {
 }
 
 const CALLOUT_SURFACE_COLORS = {
-  note: "#f3ad61",
-  abstract: "#00a6ed",
-  todo: "#785dc8",
-  tip: "#f9c23c",
-  success: "#6dd534",
-  question: "#f8312f",
-  warning: "#ffb02e",
-  error: "#f8312f",
-  example: "#7852ee",
-  quote: "#9b9b9b",
+  note: ["#f3ad61", "#c2410c", "#fb923c"],
+  abstract: ["#00a6ed", "#0672aa", "#38bdf8"],
+  todo: ["#785dc8", "#7959cf", "#a78bfa"],
+  tip: ["#f9c23c", "#c24200", "#facc15"],
+  success: ["#6dd534", "#21833d", "#86d94f"],
+  question: ["#f8312f", "#ca2f35", "#ff7b72"],
+  warning: ["#ffb02e", "#c24200", "#fbbf24"],
+  error: ["#f8312f", "#ca2f35", "#ff7b72"],
+  example: ["#7852ee", "#7959cf", "#a78bfa"],
+  quote: ["#9b9b9b", "#657180", "#b8c0cc"],
 };
 
 const CALLOUT_THEME_CONFIG = {
@@ -75,17 +75,23 @@ const CALLOUT_THEME_CONFIG = {
     base: "#ffffff",
     normal: "#202936",
     backgroundTint: 0.08,
+    body: "#636f80",
+    textIndex: 1,
   },
   dark: {
     base: "#20242a",
     normal: "#e7ebf0",
     backgroundTint: 0.04,
+    body: "#b8c0cc",
+    textIndex: 2,
   },
 };
 
 export const CALLOUT_CONTRAST_PAIRS = Object.entries(CALLOUT_THEME_CONFIG)
   .flatMap(([theme, config]) => {
-    return Object.entries(CALLOUT_SURFACE_COLORS).flatMap(([type, surface]) => {
+    return Object.entries(CALLOUT_SURFACE_COLORS).flatMap(([type, colors]) => {
+      const [surface] = colors;
+      const title = colors[config.textIndex];
       const background = mixHex(
         surface,
         config.base,
@@ -95,12 +101,12 @@ export const CALLOUT_CONTRAST_PAIRS = Object.entries(CALLOUT_THEME_CONFIG)
       return [
         [
           `${theme} callout ${type} title`,
-          config.normal,
+          title,
           background,
         ],
         [
           `${theme} callout ${type} content`,
-          config.normal,
+          config.body,
           background,
         ],
       ];

@@ -16,6 +16,8 @@ const allowedSelectors = new Set([
   ".theme-dark",
   "body",
   ".callout",
+  ":where(.theme-light .callout)",
+  ":where(.theme-dark .callout)",
   ".callout::after",
   ".callout-title",
   ".callout-content",
@@ -128,6 +130,14 @@ test("defines flat emoji defaults with a native icon fallback", () => {
     body.get("--aera-callout-surface-color"),
     "var(--callout-color)",
   );
+  assert.equal(
+    body.get("--aera-callout-text-color-light"),
+    "var(--text-normal)",
+  );
+  assert.equal(
+    body.get("--aera-callout-text-color-dark"),
+    "var(--text-normal)",
+  );
   assert.equal(body.get("--aera-callout-native-opacity"), "1");
 });
 
@@ -139,10 +149,25 @@ test("uses a borderless semantic callout surface", () => {
     overflow: "hidden",
     "background-color":
       "color-mix(in srgb, var(--aera-callout-surface-color) var(--aera-callout-background-tint), var(--aera-callout-background))",
-    color: "var(--text-normal)",
+    color: "var(--aera-callout-body-color)",
     border: "0",
     "border-inline-start": "3px solid var(--aera-callout-surface-color)",
   });
+});
+
+test("resolves semantic text colors in each callout scope", () => {
+  assert.deepEqual(
+    Object.fromEntries(
+      declarationsFor(css, ":where(.theme-light .callout)"),
+    ),
+    { "--aera-callout-text-color": "var(--aera-callout-text-color-light)" },
+  );
+  assert.deepEqual(
+    Object.fromEntries(
+      declarationsFor(css, ":where(.theme-dark .callout)"),
+    ),
+    { "--aera-callout-text-color": "var(--aera-callout-text-color-dark)" },
+  );
 });
 
 test("keeps callout text clear of the watermark", () => {
@@ -154,7 +179,7 @@ test("keeps callout text clear of the watermark", () => {
     "align-items": "center",
     gap: "var(--size-2-2)",
     "padding-inline-end": "var(--size-4-12)",
-    color: "var(--text-normal)",
+    color: "var(--aera-callout-text-color)",
   });
   assert.deepEqual(Object.fromEntries(content), {
     "padding-inline-end": "var(--size-4-12)",
@@ -221,7 +246,7 @@ test("renders opaque title icons with separate quiet watermarks", () => {
   );
 });
 
-test("embeds a distinct Fluent Emoji Flat asset for every callout family", () => {
+test("embeds distinct Fluent Emoji assets and semantic colors for every callout family", () => {
   const surfaceColors = [
     "#f3ad61",
     "#00a6ed",
@@ -236,6 +261,36 @@ test("embeds a distinct Fluent Emoji Flat asset for every callout family", () =>
     "#f8312f",
     "#7852ee",
     "#9b9b9b",
+  ];
+  const lightTextColors = [
+    "#c2410c",
+    "#0672aa",
+    "#0672aa",
+    "#7959cf",
+    "#c24200",
+    "#21833d",
+    "#ca2f35",
+    "#c24200",
+    "#ca2f35",
+    "#ca2f35",
+    "#ca2f35",
+    "#7959cf",
+    "#657180",
+  ];
+  const darkTextColors = [
+    "#fb923c",
+    "#38bdf8",
+    "#38bdf8",
+    "#a78bfa",
+    "#facc15",
+    "#86d94f",
+    "#ff7b72",
+    "#fbbf24",
+    "#ff7b72",
+    "#ff7b72",
+    "#ff7b72",
+    "#a78bfa",
+    "#b8c0cc",
   ];
   const images = calloutTypeSelectors.map((selector) => {
     const declarations = declarationsFor(css, selector);
@@ -252,10 +307,11 @@ test("embeds a distinct Fluent Emoji Flat asset for every callout family", () =>
   });
 
   for (const [index, selector] of calloutTypeSelectors.entries()) {
-    assert.equal(
-      declarationsFor(css, selector).get("--aera-callout-surface-color"),
-      surfaceColors[index],
-    );
+    const declarations = declarationsFor(css, selector);
+
+    assert.equal(declarations.get("--aera-callout-surface-color"), surfaceColors[index]);
+    assert.equal(declarations.get("--aera-callout-text-color-light"), lightTextColors[index]);
+    assert.equal(declarations.get("--aera-callout-text-color-dark"), darkTextColors[index]);
   }
 
   assert.equal(calloutTypeSelectors.length, surfaceColors.length);
