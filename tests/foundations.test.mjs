@@ -56,7 +56,7 @@ const expectedColors = {
     "--color-base-50": "#8793a3",
     "--color-base-60": "#647184",
     "--color-base-70": "#475467",
-    "--color-base-100": "#202936",
+    "--color-base-100": "#1f1f1f",
     "--background-primary": "var(--color-base-00)",
     "--background-secondary": "var(--color-base-10)",
     "--text-normal": "var(--color-base-100)",
@@ -93,7 +93,7 @@ const expectedColors = {
     "--color-base-50": "#748092",
     "--color-base-60": "#9aa5b4",
     "--color-base-70": "#c1c7d0",
-    "--color-base-100": "#e7ebf0",
+    "--color-base-100": "#dcdcdc",
     "--background-primary": "var(--color-base-00)",
     "--background-secondary": "var(--color-base-10)",
     "--text-normal": "var(--color-base-100)",
@@ -202,10 +202,10 @@ test("semantic callout titles meet AA and quiet body text stays legible", () => 
 
 test("eleven core foreground/background pairs meet WCAG AA contrast", () => {
   assert.deepEqual(CORE_CONTRAST_PAIRS, [
-    ["light text", "#202936", "#f8fafc"],
+    ["light text", "#1f1f1f", "#f8fafc"],
     ["light muted", "#647184", "#f8fafc"],
     ["light text accent", "#005ee2", "#f8fafc"],
-    ["dark text", "#e7ebf0", "#17191c"],
+    ["dark text", "#dcdcdc", "#17191c"],
     ["dark muted", "#9aa5b4", "#17191c"],
     ["dark text accent", "#4096ff", "#17191c"],
     ["light inline code", "#5d697b", "#e5e9ee"],
@@ -225,10 +225,10 @@ test("eleven core foreground/background pairs meet WCAG AA contrast", () => {
 
 test("core contrast ratios match the WCAG calculations", () => {
   const expectedRatios = [
-    "14.02",
+    "15.75",
     "4.74",
     "5.43",
-    "14.71",
+    "12.84",
     "7.06",
     "5.89",
     "4.57",

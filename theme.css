@@ -11,7 +11,7 @@
   --color-base-50: #8793a3;
   --color-base-60: #647184;
   --color-base-70: #475467;
-  --color-base-100: #202936;
+  --color-base-100: #1f1f1f;
   --background-primary: var(--color-base-00);
   --background-secondary: var(--color-base-10);
   --text-normal: var(--color-base-100);
@@ -47,7 +47,7 @@
   --color-base-50: #748092;
   --color-base-60: #9aa5b4;
   --color-base-70: #c1c7d0;
-  --color-base-100: #e7ebf0;
+  --color-base-100: #dcdcdc;
   --background-primary: var(--color-base-00);
   --background-secondary: var(--color-base-10);
   --text-normal: var(--color-base-100);

@@ -4,10 +4,10 @@ import { fileURLToPath } from "node:url";
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 
 export const CORE_CONTRAST_PAIRS = [
-  ["light text", "#202936", "#f8fafc"],
+  ["light text", "#1f1f1f", "#f8fafc"],
   ["light muted", "#647184", "#f8fafc"],
   ["light text accent", "#005ee2", "#f8fafc"],
-  ["dark text", "#e7ebf0", "#17191c"],
+  ["dark text", "#dcdcdc", "#17191c"],
   ["dark muted", "#9aa5b4", "#17191c"],
   ["dark text accent", "#4096ff", "#17191c"],
   ["light inline code", "#5d697b", "#e5e9ee"],
@@ -73,7 +73,7 @@ const CALLOUT_SURFACE_COLORS = {
 const CALLOUT_THEME_CONFIG = {
   light: {
     base: "#ffffff",
-    normal: "#202936",
+    normal: "#1f1f1f",
     backgroundTint: 0.16,
     bodyMixColor: "#ffffff",
     bodyColorWeight: 0.79,
@@ -81,7 +81,7 @@ const CALLOUT_THEME_CONFIG = {
   },
   dark: {
     base: "#20242a",
-    normal: "#e7ebf0",
+    normal: "#dcdcdc",
     backgroundTint: 0.12,
     bodyMixColor: "#20242a",
     bodyColorWeight: 0.68,
